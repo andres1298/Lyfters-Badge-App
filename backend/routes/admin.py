@@ -9,7 +9,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from bson import ObjectId
 
-from db import users, events, badges, scans, workspace_members
+from db import users, events, badges, scans, workspace_members, workspaces
 from utils import (
     require_admin, valid_oid, sanitize,
     generate_qr_base64, fmt_event, fmt_admin_badge, fmt_user
@@ -25,6 +25,17 @@ def _get_ws_id():
         return None
     ws = claims.get("workspace_id")
     return ObjectId(ws) if ws else None
+
+
+def verify_event_ownership(event_id):
+    """Verifica que el evento pertenece al workspace del admin actual."""
+    ws_id = _get_ws_id()
+    if ws_id is None:  # god_admin puede acceder a todo
+        return True
+    event = events().find_one({"_id": ObjectId(event_id)})
+    if not event:
+        return False
+    return str(event.get("workspace_id", "")) == str(ws_id)
 
 
 def _parse_int_in_range(value, lo, hi, field):
@@ -55,8 +66,14 @@ def admin_list_events():
         return jsonify(error="Acceso denegado"), 403
     ws_id = _get_ws_id()
     query = {"workspace_id": ws_id} if ws_id else {}
-    docs = events().find(query)
-    return jsonify([fmt_event(e) for e in docs]), 200
+    docs = list(events().find(query))
+    # Build workspace name cache to avoid N+1 queries
+    ws_ids = {e["workspace_id"] for e in docs if e.get("workspace_id")}
+    ws_names = {
+        str(ws["_id"]): ws.get("name", "")
+        for ws in workspaces().find({"_id": {"$in": list(ws_ids)}}, {"name": 1})
+    }
+    return jsonify([fmt_event(e, ws_names.get(str(e.get("workspace_id", "")))) for e in docs]), 200
 
 
 @admin_bp.route("/events/<event_id>/stats", methods=["GET"])
@@ -67,6 +84,8 @@ def event_stats(event_id):
     oid = valid_oid(event_id)
     if not oid:
         return jsonify(error="ID inválido"), 400
+    if not verify_event_ownership(event_id):
+        return jsonify(error="No tenés acceso a este evento"), 403
     event = events().find_one({"_id": oid})
     if not event:
         return jsonify(error="Evento no encontrado"), 404
@@ -198,7 +217,11 @@ def create_event():
     result = events().insert_one(new_event_doc)
 
     new_event = events().find_one({"_id": result.inserted_id})
-    return jsonify(fmt_event(new_event)), 201
+    ws_name = None
+    if ws_id:
+        ws_doc = workspaces().find_one({"_id": ws_id}, {"name": 1})
+        ws_name = ws_doc.get("name") if ws_doc else None
+    return jsonify(fmt_event(new_event, ws_name)), 201
 
 
 @admin_bp.route("/events/<event_id>", methods=["DELETE"])
@@ -209,6 +232,8 @@ def delete_event(event_id):
     oid = valid_oid(event_id)
     if not oid:
         return jsonify(error="ID inválido"), 400
+    if not verify_event_ownership(event_id):
+        return jsonify(error="No tenés acceso a este evento"), 403
 
     if not events().find_one({"_id": oid}):
         return jsonify(error="Evento no encontrado"), 404
@@ -230,6 +255,8 @@ def update_event(event_id):
     oid = valid_oid(event_id)
     if not oid:
         return jsonify(error="ID inválido"), 400
+    if not verify_event_ownership(event_id):
+        return jsonify(error="No tenés acceso a este evento"), 403
 
     existing = events().find_one({"_id": oid})
     if not existing:
@@ -276,7 +303,12 @@ def update_event(event_id):
         return jsonify(error="La fecha de fin no puede ser anterior a la de inicio"), 400
 
     events().update_one({"_id": oid}, {"$set": updates})
-    return jsonify(fmt_event(events().find_one({"_id": oid}))), 200
+    updated = events().find_one({"_id": oid})
+    ws_name = None
+    if updated and updated.get("workspace_id"):
+        ws_doc = workspaces().find_one({"_id": updated["workspace_id"]}, {"name": 1})
+        ws_name = ws_doc.get("name") if ws_doc else None
+    return jsonify(fmt_event(updated, ws_name)), 200
 
 
 @admin_bp.route("/events/<event_id>/location", methods=["POST"])
@@ -327,6 +359,8 @@ def admin_list_badges(event_id):
     oid = valid_oid(event_id)
     if not oid:
         return jsonify(error="ID inválido"), 400
+    if not verify_event_ownership(event_id):
+        return jsonify(error="No tenés acceso a este evento"), 403
 
     event = events().find_one({"_id": oid})
     if not event:
@@ -359,7 +393,11 @@ def create_badge(event_id):
         return jsonify(error="Acceso denegado"), 403
 
     oid_event = valid_oid(event_id)
-    if not oid_event or not events().find_one({"_id": oid_event}):
+    if not oid_event:
+        return jsonify(error="ID inválido"), 400
+    if not verify_event_ownership(event_id):
+        return jsonify(error="No tenés acceso a este evento"), 403
+    if not events().find_one({"_id": oid_event}):
         return jsonify(error="Evento no encontrado"), 404
 
     data        = request.get_json() or {}
@@ -418,6 +456,11 @@ def update_badge(event_id, badge_id):
     if not require_admin():
         return jsonify(error="Acceso denegado"), 403
 
+    if not valid_oid(event_id):
+        return jsonify(error="ID inválido"), 400
+    if not verify_event_ownership(event_id):
+        return jsonify(error="No tenés acceso a este evento"), 403
+
     oid = valid_oid(badge_id)
     if not oid:
         return jsonify(error="ID inválido"), 400
@@ -463,6 +506,10 @@ def update_badge(event_id, badge_id):
 def delete_badge(event_id, badge_id):
     if not require_admin():
         return jsonify(error="Acceso denegado"), 403
+    if not valid_oid(event_id):
+        return jsonify(error="ID inválido"), 400
+    if not verify_event_ownership(event_id):
+        return jsonify(error="No tenés acceso a este evento"), 403
     oid = valid_oid(badge_id)
     if not oid:
         return jsonify(error="ID inválido"), 400
