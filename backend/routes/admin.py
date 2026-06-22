@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pymongo.errors import DuplicateKeyError
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from bson import ObjectId
 
 from db import users, events, badges, scans, workspace_members, workspaces
@@ -16,6 +16,19 @@ from utils import (
 )
 
 admin_bp = Blueprint("admin", __name__)
+
+
+def get_caller_role():
+    return get_jwt().get("role", "participant")
+
+def is_god_admin():
+    return get_caller_role() == "god_admin"
+
+def is_superadmin_or_above():
+    return get_caller_role() in ("superadmin", "god_admin")
+
+def is_admin_or_above():
+    return get_caller_role() in ("admin", "superadmin", "god_admin")
 
 
 def _get_ws_id():
@@ -65,7 +78,13 @@ def admin_list_events():
     if not require_admin():
         return jsonify(error="Acceso denegado"), 403
     ws_id = _get_ws_id()
-    query = {"workspace_id": ws_id} if ws_id else {}
+    role = get_caller_role()
+    if ws_id is None:  # god_admin
+        query = {}
+    elif role == "admin":
+        query = {"workspace_id": ws_id, "created_by": get_jwt_identity()}
+    else:
+        query = {"workspace_id": ws_id}
     docs = list(events().find(query))
     # Build workspace name cache to avoid N+1 queries
     ws_ids = {e["workspace_id"] for e in docs if e.get("workspace_id")}
@@ -209,7 +228,7 @@ def create_event():
         "xp_first_scan":       xp_first_scan if xp_first_scan is not None else 5,
         "xp_rare_bonus":       xp_rare_bonus if xp_rare_bonus is not None else 15,
         "xp_completion_bonus": xp_completion_bonus if xp_completion_bonus is not None else 50,
-        "created_by":  admin["_id"],
+        "created_by":  get_jwt_identity(),
         "created_at":  datetime.utcnow(),
     }
     if ws_id:
