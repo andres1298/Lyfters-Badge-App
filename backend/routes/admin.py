@@ -73,7 +73,7 @@ def admin_list_events():
         str(ws["_id"]): ws.get("name", "")
         for ws in workspaces().find({"_id": {"$in": list(ws_ids)}}, {"name": 1})
     }
-    return jsonify([fmt_event(e, ws_names.get(str(e.get("workspace_id", "")))) for e in docs]), 200
+    return jsonify([fmt_event(e) for e in docs]), 200
 
 
 @admin_bp.route("/events/<event_id>/stats", methods=["GET"])
