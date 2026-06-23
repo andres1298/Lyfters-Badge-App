@@ -578,6 +578,20 @@ def cleanup_membership():
     return jsonify(deleted=r.deleted_count), 200
 
 
+# ── GET /workspaces/debug-memberships/<user_id>  (temporal, god_admin) ─
+@ws_bp.route("/debug-memberships/<user_id>", methods=["GET"])
+@jwt_required()
+def debug_memberships(user_id):
+    if get_jwt().get("role") != "god_admin":
+        return jsonify(error="Solo god_admin"), 403
+    members = list(workspace_members().find({"user_id": ObjectId(user_id)}))
+    return jsonify([{
+        "workspace_id": str(m["workspace_id"]),
+        "role":         m["role"],
+        "user_id":      str(m["user_id"]),
+    } for m in members])
+
+
 # ── GET /workspaces/platform/users  (god_admin) ───────────────
 @ws_bp.route("/platform/users", methods=["GET"])
 @jwt_required()
