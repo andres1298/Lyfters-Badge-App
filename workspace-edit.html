@@ -9,6 +9,7 @@
 </head>
 <body style="margin:0;background:#15171d;font-family:Manrope,system-ui,sans-serif;">
   <div id="app"></div>
+  <div id="modal-root"></div>
   <div id="toast-root" style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;"></div>
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
@@ -29,6 +30,7 @@
     if (!wsId) { window.location.replace('workspace-select.html'); return; }
 
     var isGod = user.role === 'god_admin';
+    window._myRole = user.role;
     var app   = document.getElementById('app');
 
     var ROLE_RANK = { participant: 1, admin: 2, superadmin: 3, god_admin: 4 };
@@ -123,44 +125,6 @@
       var titleEl = document.getElementById('we-title');
       if (titleEl) titleEl.textContent = wsData.name || 'Editar workspace';
 
-      var memberRows = members.map(function(m) {
-        var initials = (m.name || '?').split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
-        var targetRank = ROLE_RANK[m.role] || 0;
-        var canEdit    = callerRank > targetRank;
-
-        // Roles que puede asignar: solo menores al propio, nunca god_admin
-        // superadmin solo puede asignar participant y admin
-        var editableRoles = callerRole === 'god_admin'
-          ? ['participant', 'admin', 'superadmin']
-          : ['participant', 'admin'];
-        var assignableRoles = editableRoles.filter(function(r) {
-          return ROLE_RANK[r] < callerRank;
-        });
-
-        var showBadge = m.role === 'god_admin' ||
-          (m.role === 'superadmin' && callerRole !== 'god_admin') ||
-          !canEdit;
-
-        var roleCell = showBadge
-          ? '<span class="we-badge ' + (m.role||'') + '">' + (m.role||'') + '</span>'
-          : '<select data-ws="' + wsId + '" data-uid="' + m.user_id + '" onchange="changeRole(this)" ' +
-              'style="height:32px;padding:0 8px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-size:12px;outline:none;cursor:pointer;">' +
-              assignableRoles.map(function(r) {
-                return '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + r + '</option>';
-              }).join('') +
-            '</select>';
-
-        var removeBtn = canEdit
-          ? '<button onclick="removeMember(\'' + wsId + '\',\'' + m.user_id + '\')" class="we-btn danger" style="height:32px;font-size:12px;padding:0 12px;">Remover</button>'
-          : '<span style="font-size:11px;color:#4a5060;">—</span>';
-
-        return '<tr id="row-' + m.user_id + '">' +
-          '<td><span class="we-avatar">' + initials + '</span>' + U.esc(m.name || '—') + '</td>' +
-          '<td style="color:#8b93a3;">' + U.esc(m.email || '—') + '</td>' +
-          '<td>' + roleCell + '</td>' +
-          '<td>' + removeBtn + '</td>' +
-        '</tr>';
-      }).join('');
 
       var pendingInv = invList.filter(function(i){ return i.status === 'pending'; });
       var invRows = pendingInv.map(function(i) {
@@ -193,9 +157,7 @@
 
         '<div class="we-card">' +
           '<div class="we-card-title">Miembros del workspace</div>' +
-          (memberRows
-            ? '<div style="overflow-x:auto;"><table class="we-table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody>' + memberRows + '</tbody></table></div>'
-            : '<p style="color:#8b93a3;text-align:center;padding:24px;">No hay miembros</p>') +
+          '<div id="members-list"></div>' +
           '<p style="font-size:11px;color:#4a5060;margin-top:10px;">' + members.length + ' miembro(s)</p>' +
         '</div>' +
 
@@ -229,6 +191,8 @@
               '<button onclick="deleteWorkspace()" style="height:42px;padding:0 20px;border-radius:10px;border:1px solid rgba(230,138,141,0.40);background:rgba(230,138,141,0.10);color:#e68a8d;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity=\'.75\'" onmouseout="this.style.opacity=\'1\'">Eliminar workspace</button>' +
             '</div>'
           : '');
+
+      renderMembers(members);
 
       var logoFileInput = document.getElementById('we-logo-file');
       if (logoFileInput) {
@@ -286,29 +250,88 @@
       } catch(e) { U.toast(e.message, 'error'); }
     };
 
-    window.changeRole = async function(sel) {
-      var uid     = sel.dataset.uid;
-      var newRole = sel.value;
-      var prevVal = sel.querySelector('option[selected]') ? sel.querySelector('option[selected]').value : null;
-      sel.disabled = true;
+    function renderMembers(members) {
+      var container = document.getElementById('members-list');
+      if (!container) return;
+
+      var html = members.map(function(m) {
+        var isGod = m.global_role === 'god_admin';
+        var isSuperOrGod = (m.role === 'superadmin' || m.global_role === 'god_admin');
+        var myRole = window._myRole || 'superadmin';
+        var initials = (m.name || '?').split(' ').map(function(w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+        var displayRole = m.global_role === 'god_admin' ? 'god_admin' : m.role;
+        var roleColors = { god_admin: '#ffc850', superadmin: '#d897e7', admin: '#70cfff', participant: '#8b93a3' };
+        var roleColor = roleColors[displayRole] || '#8b93a3';
+
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #2a2e38;gap:12px;flex-wrap:wrap;">' +
+          '<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">' +
+            '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#d897e7,#e68a8d);display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#1c1f27;flex-shrink:0;">' + initials + '</div>' +
+            '<div style="min-width:0;">' +
+              '<div style="font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#f4f6f9;">' + U.esc(m.name || '') + '</div>' +
+              '<div style="font-size:11px;color:#8b93a3;">' + U.esc(m.email || '') + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:' + roleColor + '22;color:' + roleColor + ';white-space:nowrap;">' + displayRole + '</span>' +
+          '<div style="display:flex;gap:8px;flex-shrink:0;">' +
+            (isGod
+              ? '<span style="font-size:11px;color:#ffc850;padding:6px 12px;background:rgba(255,200,80,0.1);border:1px solid rgba(255,200,80,0.2);border-radius:8px;">Protegido</span>'
+              : (isSuperOrGod && myRole !== 'god_admin')
+                ? '<span style="font-size:11px;color:#8b93a3;padding:6px 12px;background:rgba(255,255,255,0.04);border:1px solid #2f343f;border-radius:8px;">Sin permisos</span>'
+                : '<button onclick="openMemberRoleModal(\'' + m.user_id + '\',\'' + U.esc(m.name) + '\',\'' + m.role + '\')" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid #353a46;background:rgba(216,151,231,0.1);color:#d897e7;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">Modificar rol</button>' +
+                  '<button onclick="removeMember(\'' + m.user_id + '\',\'' + U.esc(m.name) + '\')" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid #353a46;background:rgba(230,138,141,0.1);color:#e68a8d;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">Remover</button>'
+            ) +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      container.innerHTML = html || '<p style="color:#8b93a3;text-align:center;padding:24px;">No hay miembros.</p>';
+    }
+
+    window.openMemberRoleModal = function(userId, name, currentRole) {
+      var myRole = window._myRole || 'superadmin';
+      var availableRoles = myRole === 'god_admin'
+        ? ['participant', 'admin', 'superadmin']
+        : ['participant', 'admin'];
+      var roleLabels = { participant: 'Participante', admin: 'Admin', superadmin: 'Super Admin' };
+
+      var modal = document.getElementById('modal-root');
+      modal.innerHTML =
+        '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.innerHTML=\'\'">' +
+          '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:20px;padding:24px;width:100%;max-width:340px;" onclick="event.stopPropagation()">' +
+            '<h3 style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0 0 4px;">Modificar rol</h3>' +
+            '<p style="font-size:12px;color:#8b93a3;margin:0 0 20px;">' + U.esc(name) + '</p>' +
+            '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">' +
+              availableRoles.map(function(r) {
+                var active = r === currentRole;
+                return '<button onclick="setMemberRole(\'' + userId + '\',\'' + r + '\')" ' +
+                  'style="padding:12px 16px;border-radius:10px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';' +
+                  'background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';' +
+                  'color:' + (active ? '#d897e7' : '#8b93a3') + ';' +
+                  'font-family:Poppins,sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left;">' +
+                  roleLabels[r] + (active ? ' ✓' : '') + '</button>';
+              }).join('') +
+            '</div>' +
+            '<button onclick="document.getElementById(\'modal-root\').innerHTML=\'\'" ' +
+              'style="width:100%;padding:12px;border-radius:10px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-family:Poppins,sans-serif;font-size:14px;cursor:pointer;">Cancelar</button>' +
+          '</div>' +
+        '</div>';
+    };
+
+    window.setMemberRole = async function(userId, role) {
       try {
-        var res = await fetch(API.base + '/workspaces/' + wsId + '/members/' + uid, {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/members/' + userId, {
           method: 'PATCH',
           headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ role: newRole })
+          body: JSON.stringify({ role: role })
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error');
-        U.toast('Rol actualizado a ' + newRole, 'success');
-        // Mark new option as selected
-        Array.prototype.forEach.call(sel.options, function(opt) {
-          opt.selected = opt.value === newRole;
-        });
+        document.getElementById('modal-root').innerHTML = '';
+        U.toast('Rol actualizado correctamente', 'success');
+        setTimeout(function() { init(); }, 600);
       } catch(e) {
         U.toast(e.message, 'error');
-        if (prevVal) sel.value = prevVal;
       }
-      sel.disabled = false;
     };
 
     window.deleteWorkspace = async function() {
@@ -325,10 +348,10 @@
       } catch(e) { U.toast(e.message, 'error'); }
     };
 
-    window.removeMember = async function(wId, uid) {
-      if (!confirm('¿Seguro que querés remover a este miembro?')) return;
+    window.removeMember = async function(uid, name) {
+      if (!confirm('¿Seguro que querés remover a ' + (name || 'este miembro') + '?')) return;
       try {
-        var res = await fetch(API.base + '/workspaces/' + wId + '/members/' + uid, {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/members/' + uid, {
           method: 'DELETE',
           headers: API.authHeaders()
         });
