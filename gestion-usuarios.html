@@ -199,18 +199,16 @@
       if (!container) return;
       container.innerHTML = '<p style="font-size:13px;color:#8b93a3;text-align:center;padding:20px;">Cargando...</p>';
       try {
-        try {
-          var wsRes = await fetch(API.base + '/workspaces/', { headers: API.authHeaders() });
-          var wsData = await wsRes.json();
-          if (wsRes.ok) _allWsCache = wsData;
-        } catch(e) {}
-        var res = await fetch(API.base + '/workspaces/platform/users', { headers: API.authHeaders() });
+        var wsRes = await fetch(window.LyfterAPI.base + '/workspaces/', { headers: window.LyfterAPI.authHeaders() });
+        var wsData = await wsRes.json();
+        if (wsRes.ok) _allWsCache = wsData;
+        var res = await fetch(window.LyfterAPI.base + '/workspaces/platform/users', { headers: window.LyfterAPI.authHeaders() });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error');
         _platformUsersCache = data;
         renderPlatformUsers(data);
       } catch(e) {
-        container.innerHTML = '<p style="color:#e68a8d;font-size:13px;text-align:center;padding:20px;">Error: ' + U.esc(e.message) + '</p>';
+        container.innerHTML = '<p style="color:#e68a8d;font-size:13px;text-align:center;padding:20px;">Error: ' + (e.message || 'Error') + '</p>';
       }
     };
 
