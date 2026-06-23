@@ -41,7 +41,7 @@ def _member_to_dict(m, user_doc=None):
 @jwt_required()
 def get_my_workspace():
     uid = ObjectId(get_jwt_identity())
-    member = workspace_members().find_one({"user_id": uid})
+    member = workspace_members().find_one({"user_id": uid}, sort=[("joined_at", -1)])
     if not member:
         return jsonify(error="No pertenecés a ningún workspace"), 404
     ws = workspaces().find_one({"_id": member["workspace_id"]})
@@ -50,6 +50,26 @@ def get_my_workspace():
     result = _ws_to_dict(ws)
     result["my_role"] = member["role"]
     return jsonify(result)
+
+
+# ── GET /workspaces/mine-all ─────────────────────────────────
+@ws_bp.route("/mine-all", methods=["GET"])
+@jwt_required()
+def get_my_workspaces_all():
+    uid = ObjectId(get_jwt_identity())
+    memberships = list(workspace_members().find({"user_id": uid}))
+    if not memberships:
+        return jsonify([]), 200
+    ws_ids  = [m["workspace_id"] for m in memberships]
+    role_map = {str(m["workspace_id"]): m["role"] for m in memberships}
+    ws_list = list(workspaces().find({"_id": {"$in": ws_ids}}))
+    result = []
+    for ws in ws_list:
+        d = _ws_to_dict(ws)
+        d["my_role"]     = role_map.get(str(ws["_id"]), "participant")
+        d["member_count"] = workspace_members().count_documents({"workspace_id": ws["_id"]})
+        result.append(d)
+    return jsonify(result), 200
 
 
 # ── POST /workspaces/creation-code  (solo god_admin) ─────────
