@@ -894,7 +894,17 @@
       requestAnimationFrame(loop);
     }
 
-    window.addEventListener('resize', function() { init(); });
+    // Mismo fix que stars.js: en móvil la barra del navegador aparece/desaparece
+    // y dispara 'resize' cambiando solo el ALTO; re-sembrar (init) ahí hacía saltar
+    // las partículas. Recalculamos dimensiones siempre, pero solo re-sembramos
+    // cuando cambia el ANCHO (rotación o cambio real de viewport).
+    function onViewportChange() {
+      var prevW = W;
+      resize();
+      if (W !== prevW) init();
+    }
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('orientationchange', onViewportChange);
     window.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
     window.addEventListener('mouseleave', function() { mouse.x = -9999; mouse.y = -9999; });
     window.addEventListener('touchmove', function(e) {
