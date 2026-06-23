@@ -174,37 +174,18 @@
           try { allWs = await apiFetch('/workspaces/'); } catch(e) { allWs = []; }
           render(wsData, members, allWs);
         } else {
-          // Verificar si el JWT actual ya tiene workspace_id
-          var session = JSON.parse(localStorage.getItem('lyfter_session') || '{}');
-          var payload = {};
-          try { payload = JSON.parse(atob((session.token || '').split('.')[1])); } catch(e) {}
-          var hasWsInJwt = !!payload.workspace_id;
+          // Siempre leer de DB directo — no depender del JWT
+          try { allWs = await apiFetch('/workspaces/mine-all'); } catch(e) { allWs = []; }
 
-          if (!hasWsInJwt) {
-            // Sin workspace en JWT — intentar refresh para ver si fue asignado
-            try {
-              var refreshRes = await apiFetch('/auth/refresh-token', { method: 'POST' });
-              if (refreshRes && refreshRes.token) {
-                var newPayload = JSON.parse(atob(refreshRes.token.split('.')[1]));
-                if (newPayload.workspace_id) {
-                  // Tiene workspace en DB — guardar token y navegar (no reload)
-                  API.setToken(refreshRes.token);
-                  window.location.href = 'workspace-select.html';
-                  return;
-                }
-              }
-            } catch(e) {}
-            // Definitivamente sin workspace — mostrar pantalla de unirse
+          if (allWs.length === 0) {
             render(null, [], []);
-            return;
-          }
-
-          // Tiene workspace en JWT — cargar normalmente
-          try { wsData = await apiFetch('/workspaces/mine'); } catch(e) {}
-          if (wsData && wsData.id) {
+          } else if (allWs.length === 1) {
+            wsData = allWs[0];
             try { members = await apiFetch('/workspaces/' + wsData.id + '/members'); } catch(e) {}
+            render(wsData, members, allWs);
+          } else {
+            render(null, [], allWs);
           }
-          render(wsData, members, []);
         }
       } catch(err) {
         render(null, [], []);
