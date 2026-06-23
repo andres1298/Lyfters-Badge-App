@@ -327,6 +327,38 @@ def invite_member(ws_id):
     if role in ("admin", "superadmin") and _ROLE_RANK.get(caller_ws_role, 0) < 3:
         return jsonify(error="Solo superadmin o god_admin pueden invitar como admin o superadmin"), 403
 
+    # Si el usuario ya existe en la plataforma, agregarlo directamente sin invitación
+    if email:
+        existing_user = users().find_one({"email": email})
+        if existing_user:
+            existing_member = workspace_members().find_one({
+                "workspace_id": oid,
+                "user_id": existing_user["_id"]
+            })
+            if existing_member:
+                workspace_members().update_one(
+                    {"workspace_id": oid, "user_id": existing_user["_id"]},
+                    {"$set": {"role": role}}
+                )
+                return jsonify(
+                    message=f"{email} ya era miembro. Rol actualizado a {role}.",
+                    direct=True,
+                    role=role
+                ), 200
+            else:
+                workspace_members().insert_one({
+                    "workspace_id": oid,
+                    "user_id":      existing_user["_id"],
+                    "role":         role,
+                    "joined_at":    datetime.now(timezone.utc),
+                    "invited_by":   caller
+                })
+                return jsonify(
+                    message=f"{email} agregado como {role} directamente.",
+                    direct=True,
+                    role=role
+                ), 201
+
     expires = datetime.now(timezone.utc) + timedelta(days=7)
     code    = generate_invite_code()
     token   = str(uuid.uuid4())

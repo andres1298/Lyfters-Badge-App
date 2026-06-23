@@ -279,19 +279,23 @@
     window.assignUserToWorkspace = async function(userId, email) {
       var wsId = (document.getElementById('ws-for-' + userId) || {}).value || '';
       var role = (document.getElementById('role-for-' + userId) || {}).value || '';
-      if (!wsId) { toast('Seleccioná un workspace', 'error'); return; }
-      if (!role) { toast('Seleccioná un rol', 'error'); return; }
+      if (!wsId) { U.toast('Seleccioná un workspace', 'error'); return; }
+      if (!role) { U.toast('Seleccioná un rol', 'error'); return; }
       if (!confirm('¿Asignar a ' + email + ' como ' + role + ' en el workspace seleccionado?')) return;
       try {
         var res = await fetch(API.base + '/workspaces/' + wsId + '/invite', {
           method: 'POST',
           headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
-          body: JSON.stringify({ email: email, role: role, method: 'email' })
+          body: JSON.stringify({ email: email, role: role, method: 'direct' })
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error');
-        toast(email + ' asignado como ' + role, 'success');
-      } catch(e) { toast(e.message, 'error'); }
+        if (data.direct) {
+          U.toast(email + ' asignado como ' + role + ' directamente', 'success');
+        } else {
+          U.toast('Invitación enviada a ' + email, 'success');
+        }
+      } catch(e) { U.toast(e.message, 'error'); }
     };
 
     var _banModalTarget = null;
