@@ -354,13 +354,8 @@
         '</div>';
       }
 
-      // Join by code (god_admin tiene acceso a todos los workspaces directamente)
-      if (!isGod) html += joinSectionHtml();
-
-      // Create workspace (solo admin/superadmin con código de creación)
-      if (!isGod && ['admin','superadmin'].indexOf(user.role) !== -1) {
-        html += createWsFormHtml(false);
-      }
+      // Unirse con código solo si el usuario no tiene workspaces aún
+      if (!isGod && allWs.length === 0) html += joinSectionHtml();
 
       main.innerHTML = html;
       bindJoin();

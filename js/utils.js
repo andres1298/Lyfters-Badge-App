@@ -1200,15 +1200,18 @@
     if (profileBtn) {
       profileBtn.addEventListener('click', async function() {
         try {
+          var _cu = window.LyfterAPI.currentUser();
+          var _isGod = _cu && _cu.role === 'god_admin';
           var p = await window.LyfterAPI.getProfile();
           showDrawer(p.avatar, p.nombre, function(newAvatar) {
             if (newAvatar) {
               profileBtn.style.backgroundImage = 'url(' + newAvatar + ')';
               profileBtn.style.backgroundSize = 'cover';
             }
-          }, true);
+          }, _isGod);
         } catch(e) {
-          showDrawer(null, null, null, true);
+          var _cu2 = window.LyfterAPI.currentUser();
+          showDrawer(null, null, null, _cu2 && _cu2.role === 'god_admin');
         }
       });
     }
