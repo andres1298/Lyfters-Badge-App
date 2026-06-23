@@ -177,6 +177,19 @@ def list_workspaces():
     return jsonify(result)
 
 
+# ── GET /workspaces/<ws_id> ───────────────────────────────────
+@ws_bp.route("/<ws_id>", methods=["GET"])
+@jwt_required()
+def get_workspace(ws_id):
+    try:
+        ws = workspaces().find_one({"_id": ObjectId(ws_id)})
+        if not ws:
+            return jsonify(error="No encontrado"), 404
+        return jsonify(_ws_to_dict(ws)), 200
+    except Exception:
+        return jsonify(error="ID inválido"), 400
+
+
 # ── PATCH /workspaces/<ws_id> ─────────────────────────────────
 @ws_bp.route("/<ws_id>", methods=["PATCH"])
 @jwt_required()
