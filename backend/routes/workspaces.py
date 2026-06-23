@@ -344,7 +344,7 @@ def invite_member(ws_id):
         return jsonify(error="Rol inválido"), 400
 
     # Solo superadmin y god_admin pueden invitar como admin o superadmin
-    if role in ("admin", "superadmin") and _ROLE_RANK.get(caller_ws_role, 0) < 3:
+    if role in ("admin", "superadmin") and caller_role != "god_admin" and _ROLE_RANK.get(caller_ws_role, 0) < 3:
         return jsonify(error="Solo superadmin o god_admin pueden invitar como admin o superadmin"), 403
 
     # Si el usuario ya existe en la plataforma, agregarlo directamente sin invitación
