@@ -291,7 +291,7 @@
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error');
         if (data.direct) {
-          U.toast(email + ' asignado como ' + role + ' directamente', 'success');
+          U.toast(email + ' asignado como ' + role + '. El usuario debe recargar su sesión para ver el cambio.', 'success');
         } else {
           U.toast('Invitación enviada a ' + email, 'success');
         }

@@ -168,6 +168,13 @@
     // ─────────────────────────────────────────────────────────
     async function load() {
       try {
+        try {
+          var refreshRes = await apiFetch('/auth/refresh-token', { method: 'POST' });
+          if (refreshRes && refreshRes.token) API.setToken(refreshRes.token);
+        } catch(e) {
+          console.warn('[load] No se pudo refrescar token:', e.message);
+        }
+
         var wsData = null, members = [], allWs = [];
 
         if (isGod) {

@@ -97,6 +97,29 @@ def switch_workspace():
     return jsonify(token=token), 200
 
 
+@auth_bp.route("/refresh-token", methods=["POST"])
+@jwt_required()
+def refresh_token():
+    user_id = get_jwt_identity()
+    user_doc = users().find_one({"_id": ObjectId(user_id)})
+    if not user_doc:
+        return jsonify(error="Usuario no encontrado"), 404
+
+    member = workspace_members().find_one(
+        {"user_id": ObjectId(user_id)},
+        sort=[("joined_at", -1)]
+    )
+
+    claims = {
+        "role":           user_doc.get("role", "participant"),
+        "name":           user_doc.get("name", ""),
+        "workspace_id":   str(member["workspace_id"]) if member else None,
+        "workspace_role": member["role"] if member else None,
+    }
+    token = create_access_token(identity=user_id, additional_claims=claims)
+    return jsonify(token=token, workspace_id=str(member["workspace_id"]) if member else None), 200
+
+
 @auth_bp.route("/register", methods=["POST"])
 @register_limit
 @ip_guard_register
