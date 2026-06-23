@@ -225,7 +225,17 @@
     }
   });
 
-  window.addEventListener('resize', function () { resize(); seed(); });
+  // En móvil la barra del navegador aparece/desaparece y dispara 'resize'
+  // cambiando solo el ALTO; re-sembrar ahí hacía saltar las estrellas por toda
+  // la pantalla. Recalculamos dimensiones siempre, pero solo re-sembramos cuando
+  // cambia el ANCHO (rotación o cambio real de viewport).
+  function onViewportChange() {
+    var prevW = W;
+    resize();
+    if (W !== prevW) seed();
+  }
+  window.addEventListener('resize', onViewportChange);
+  window.addEventListener('orientationchange', onViewportChange);
 
   resize();
   seed();
