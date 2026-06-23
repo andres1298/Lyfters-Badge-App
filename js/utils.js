@@ -1270,9 +1270,11 @@
     // Async: update sidebar logo + name with current workspace branding
     (async function() {
       try {
-        var res = await fetch(window.LyfterAPI.base + '/workspaces/mine', {
-          headers: window.LyfterAPI.authHeaders()
-        });
+        var _wsId; try { _wsId = sessionStorage.getItem('lyfter_active_ws'); } catch(e) {}
+        var _url = _wsId
+          ? (window.LyfterAPI.base + '/workspaces/' + _wsId)
+          : (window.LyfterAPI.base + '/workspaces/mine');
+        var res = await fetch(_url, { headers: window.LyfterAPI.authHeaders() });
         if (!res.ok) return;
         var ws = await res.json();
         var logoEl = document.getElementById('admin-sidebar-logo');
