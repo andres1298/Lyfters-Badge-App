@@ -162,24 +162,24 @@
         '</tr>';
       }).join('');
 
-      var allWsHtml = isGod && allWs.length ? '<div class="ws-card"><div class="ws-card-title">Todos los workspaces (' + allWs.length + ')</div>' +
-        '<div class="ws-all-grid">' +
-        allWs.map(function(w) {
-          return '<div class="ws-all-card">' +
-            '<div style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin-bottom:8px;">' + U.esc(w.name||'') + '</div>' +
-            '<div style="font-size:12px;color:#8b93a3;margin-bottom:12px;">/' + U.esc(w.slug||'') + ' · ' + (w.plan||'free') + '</div>' +
-            '<div style="display:flex;gap:10px;font-size:12px;color:#6f7686;">' +
-              '<span>👥 ' + (w.member_count||0) + ' miembros</span>' +
-              '<span>🎟️ ' + (w.event_count||0) + ' eventos</span>' +
+      var allWsHtml = isGod ? '<div class="ws-card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+          '<div class="ws-card-title" style="margin:0;">Workspaces</div>' +
+          '<a href="workspace-create.html" class="ws-btn cta" style="display:inline-flex;align-items:center;text-decoration:none;height:36px;padding:0 14px;font-size:13px;">+ New</a>' +
+        '</div>' +
+        (allWs.length ? allWs.map(function(w) {
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:#15171d;border-radius:12px;margin-bottom:10px;border:1px solid #2f343f;">' +
+            '<div>' +
+              '<div style="font-size:14px;font-weight:700;color:#f4f6f9;">' + U.esc(w.name||'') + '</div>' +
+              '<div style="font-size:12px;color:#8b93a3;margin-top:2px;">/' + U.esc(w.slug||'') + ' · ' + (w.plan||'free') + ' · ' + (w.member_count||0) + ' miembros</div>' +
             '</div>' +
-            '<div style="margin-top:12px;">' +
-              '<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;' +
-                (w.active ? 'background:rgba(171,209,148,0.15);color:#abd194;' : 'background:rgba(230,138,141,0.15);color:#e68a8d;') + '">' +
-                (w.active ? 'Activo' : 'Suspendido') + '</span>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<a href="workspace.html?ws=' + w.id + '" class="ws-btn cta" style="display:inline-flex;align-items:center;text-decoration:none;height:34px;padding:0 14px;font-size:12px;">Entrar</a>' +
+              '<a href="workspace-edit.html?ws=' + w.id + '" class="ws-btn outline" style="display:inline-flex;align-items:center;text-decoration:none;height:34px;padding:0 14px;font-size:12px;background:rgba(255,255,255,0.05);color:#8b93a3;border:1px solid #2f343f;">Editar</a>' +
             '</div>' +
           '</div>';
-        }).join('') +
-        '</div></div>' : '';
+        }).join('') : '<p style="color:#8b93a3;text-align:center;padding:24px 0;">No hay workspaces aún.</p>') +
+      '</div>' : '';
 
       app.innerHTML = styles +
         '<div class="ws-header">' +
@@ -231,6 +231,8 @@
             '</div>' +
           '</div>' : '') +
 
+          allWsHtml +
+
           (ws.id ? '<div class="ws-card">' +
             '<div class="ws-card-title">Miembros del workspace</div>' +
             (memberRows
@@ -266,8 +268,6 @@
             '</div>' +
             (invRows ? '<div style="margin-top:20px;"><div style="font-size:13px;font-weight:700;color:#cdd2db;margin-bottom:10px;">Invitaciones pendientes</div><div style="overflow-x:auto;"><table class="ws-table"><thead><tr><th>Email</th><th>Código</th><th>Rol</th><th>Estado</th></tr></thead><tbody>' + invRows + '</tbody></table></div></div>' : '') +
           '</div>' : '') +
-
-          allWsHtml +
 
           (isGod ? '<div class="ws-card" style="border-color:rgba(255,200,80,0.25);background:linear-gradient(135deg,rgba(255,200,80,0.05),rgba(216,151,231,0.03));">' +
             '<div class="ws-card-title" style="color:#ffc850;">⚡ Herramientas God Admin</div>' +
