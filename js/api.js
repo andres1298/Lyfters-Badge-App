@@ -907,7 +907,12 @@
     base: CFG.apiBaseUrl,
     authHeaders: function() {
       var s = getSession();
-      return s && s.token ? { 'Authorization': 'Bearer ' + s.token } : {};
+      var headers = s && s.token ? { 'Authorization': 'Bearer ' + s.token } : {};
+      try {
+        var activeWs = sessionStorage.getItem('lyfter_active_ws');
+        if (activeWs) headers['X-Workspace-Id'] = activeWs;
+      } catch(e) {}
+      return headers;
     },
     getSession: getSession,
     currentUser: function () { var s = getSession(); return s ? s.user : null; },

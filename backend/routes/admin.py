@@ -35,6 +35,8 @@ def _get_ws_id():
     """Devuelve el workspace_id del JWT como ObjectId, o None si no hay workspace seleccionado."""
     claims = get_jwt()
     ws = claims.get("workspace_id")
+    if not ws:
+        ws = request.headers.get("X-Workspace-Id")
     return ObjectId(ws) if ws else None
 
 

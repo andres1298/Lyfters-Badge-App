@@ -62,7 +62,7 @@ def clear_attempts(email):
 # AUTH
 # ──────────────────────────────────────────────
 
-@auth_bp.route("/auth/switch-workspace", methods=["POST"])
+@auth_bp.route("/switch-workspace", methods=["POST"])
 @jwt_required()
 def switch_workspace():
     user_id = get_jwt_identity()
