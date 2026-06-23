@@ -218,7 +218,15 @@
                 '<div style="overflow-x:auto;"><table class="we-table"><thead><tr><th>Email</th><th>Código</th><th>Rol</th><th>Estado</th></tr></thead><tbody>' + invRows + '</tbody></table></div>' +
               '</div>'
             : '') +
-        '</div>';
+        '</div>' +
+
+        (isGod
+          ? '<div class="we-card" style="border-color:rgba(230,138,141,0.25);">' +
+              '<div class="we-card-title" style="color:#e68a8d;">Zona de peligro</div>' +
+              '<p style="font-size:13px;color:#8b93a3;margin:0 0 16px;">Esta acción es irreversible. Se eliminarán el workspace y todos sus miembros.</p>' +
+              '<button onclick="deleteWorkspace()" style="height:42px;padding:0 20px;border-radius:10px;border:1px solid rgba(230,138,141,0.40);background:rgba(230,138,141,0.10);color:#e68a8d;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity=\'.75\'" onmouseout="this.style.opacity=\'1\'">Eliminar workspace</button>' +
+            '</div>'
+          : '');
 
       var logoFileInput = document.getElementById('we-logo-file');
       if (logoFileInput) {
@@ -299,6 +307,20 @@
         if (prevVal) sel.value = prevVal;
       }
       sel.disabled = false;
+    };
+
+    window.deleteWorkspace = async function() {
+      if (!confirm('¿Seguro que querés eliminar este workspace? Esta acción es irreversible.')) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId, {
+          method: 'DELETE',
+          headers: API.authHeaders()
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al eliminar');
+        U.toast('Workspace eliminado', 'success');
+        setTimeout(function() { window.location.replace('workspace-select.html'); }, 900);
+      } catch(e) { U.toast(e.message, 'error'); }
     };
 
     window.removeMember = async function(wId, uid) {
