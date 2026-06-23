@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from bson import ObjectId
 from datetime import datetime, timezone, timedelta
-import bcrypt, uuid, os
+import bcrypt, uuid, os, re
 
 from db import workspaces, workspace_members, users, invitations, events, badges, scans
 from workspace_utils import (
@@ -349,7 +349,7 @@ def invite_member(ws_id):
 
     # Si el usuario ya existe en la plataforma, agregarlo directamente sin invitación
     if email:
-        existing_user = users().find_one({"email": email})
+        existing_user = users().find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
         if existing_user:
             existing_member = workspace_members().find_one({
                 "workspace_id": oid,
