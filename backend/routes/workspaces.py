@@ -320,12 +320,12 @@ def invite_member(ws_id):
     role   = data.get("role", "participant")
     method = data.get("method", "code")
 
-    if role not in ("admin", "participant"):
+    if role not in ("participant", "admin", "superadmin"):
         return jsonify(error="Rol inválido"), 400
 
-    # Solo superadmin y god_admin pueden invitar como admin
-    if role == "admin" and _ROLE_RANK.get(caller_ws_role, 0) < 3:
-        return jsonify(error="Solo superadmin o god_admin pueden invitar como admin"), 403
+    # Solo superadmin y god_admin pueden invitar como admin o superadmin
+    if role in ("admin", "superadmin") and _ROLE_RANK.get(caller_ws_role, 0) < 3:
+        return jsonify(error="Solo superadmin o god_admin pueden invitar como admin o superadmin"), 403
 
     expires = datetime.now(timezone.utc) + timedelta(days=7)
     code    = generate_invite_code()
