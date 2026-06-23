@@ -1239,7 +1239,7 @@
       '<div style="position:fixed;top:-200px;right:-120px;width:900px;height:620px;pointer-events:none;z-index:0;background:radial-gradient(44% 60% at 30% 30%,rgba(216,151,231,0.16),transparent 70%),radial-gradient(44% 60% at 76% 40%,rgba(112,207,255,0.12),transparent 70%);"></div>';
 
     var main =
-      '<main id="admin-main" style="margin-left:248px;min-height:100vh;position:relative;z-index:1;padding:34px 44px 70px;background:#15171d;">' +
+      '<main id="admin-main" style="margin-left:248px;min-height:100vh;position:relative;z-index:1;padding:34px 44px 70px;">' +
         innerHtml +
       '</main>';
 

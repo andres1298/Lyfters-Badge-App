@@ -583,24 +583,92 @@ body.font-small  { font-size: 13px; }
 body.font-medium { font-size: 16px; }
 body.font-large  { font-size: 20px; }
 
-/* ── GLASSMORPHISM HEADER ── */
+/* ══════════════════════════════════════════════════════════════
+   GLASS SYSTEM
+   stars.js canvas is position:fixed z-index:0 → behind everything.
+   #app is z-index:1 → above canvas. All content uses semi-transparent
+   backgrounds + backdrop-filter so stars show blurred behind content.
+══════════════════════════════════════════════════════════════ */
+
+/* Base body: dark foundation beneath stars canvas */
+body {
+  background: #0d0f14 !important;
+}
+
+/* #app: transparent so canvas shows through to cards */
+#app {
+  background: transparent !important;
+}
+
+/* ── Page-level content wrappers: thin glass layer ── */
+#admin-main {
+  background: rgba(13, 15, 20, 0.30) !important;
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+}
+
+/* ── Cards: frosted glass ── */
+.card-soft,
+.frame-card {
+  background: rgba(28, 31, 39, 0.82) !important;
+  backdrop-filter: blur(18px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.4) !important;
+}
+
+/* ── Glassmorphism headers / sidebars ── */
 .glass-header {
-  background: rgba(21, 23, 29, 0.82) !important;
+  background: rgba(21, 23, 29, 0.78) !important;
   backdrop-filter: blur(20px) saturate(1.6) !important;
   -webkit-backdrop-filter: blur(20px) saturate(1.6) !important;
   border-bottom: 1px solid rgba(216, 151, 231, 0.10) !important;
 }
 
 .glass-sidebar {
-  background: rgba(26, 29, 36, 0.90) !important;
+  background: rgba(26, 29, 36, 0.82) !important;
   backdrop-filter: blur(24px) saturate(1.5) !important;
   -webkit-backdrop-filter: blur(24px) saturate(1.5) !important;
   border-right: 1px solid rgba(47, 52, 63, 0.70) !important;
 }
 
-body {
-  background-color: #15171d !important;
-  background-attachment: fixed;
+/* ── Admin sidebar override (generated inline by adminShell) ── */
+#admin-sidebar {
+  background: rgba(26, 29, 36, 0.85) !important;
+  backdrop-filter: blur(24px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.5) !important;
+  border-right: 1px solid rgba(47, 52, 63, 0.60) !important;
+}
+
+/* ── Workspace header override ── */
+.ws-header {
+  background: rgba(26, 29, 36, 0.80) !important;
+  backdrop-filter: blur(20px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.5) !important;
+  border-bottom: 1px solid rgba(216, 151, 231, 0.10) !important;
+}
+
+/* ── Workspace cards ── */
+.ws-card {
+  background: rgba(28, 31, 39, 0.82) !important;
+  backdrop-filter: blur(18px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.4) !important;
+}
+
+/* ── Drawer / modal panels ── */
+#drawer-panel {
+  background: rgba(28, 31, 39, 0.92) !important;
+  backdrop-filter: blur(24px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.4) !important;
+}
+
+/* ── Toast root stays sharp ── */
+#toast-root {
+  position: fixed !important;
+  z-index: 60 !important;
+}
+
+/* ── Loading screen stays opaque ── */
+#loading-screen {
+  background: #0d0f14 !important;
 }
 
 /* ══════════════════════════════════════
