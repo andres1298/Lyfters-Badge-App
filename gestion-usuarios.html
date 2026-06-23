@@ -293,8 +293,26 @@
       var role = (document.getElementById('role-for-' + userId) || {}).value || '';
       var toast = function(msg, type) { window.LyfterUtils.toast(msg, type); };
 
-      if (!wsId) { toast('Seleccioná un workspace', 'error'); return; }
       if (!role) { toast('Seleccioná un rol', 'error'); return; }
+
+      // participant no necesita workspace — solo actualiza rol global
+      if (role === 'participant') {
+        if (!confirm('¿Cambiar a ' + email + ' a participante? Perderá acceso al panel de administración.')) return;
+        try {
+          var res = await fetch(window.LyfterAPI.base + '/workspaces/set-participant', {
+            method: 'POST',
+            headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
+            body: JSON.stringify({ email: email })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error');
+          toast(email + ' ahora es participante', 'success');
+          setTimeout(function() { loadPlatformUsers(); }, 800);
+        } catch(e) { toast(e.message, 'error'); }
+        return;
+      }
+
+      if (!wsId) { toast('Seleccioná un workspace', 'error'); return; }
 
       try {
         var res = await fetch(window.LyfterAPI.base + '/workspaces/' + wsId + '/invite', {
@@ -304,14 +322,9 @@
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error');
-        if (data.direct) {
-          toast(email + ' asignado como ' + role + ' correctamente.', 'success');
-        } else {
-          toast('Invitación enviada a ' + email, 'success');
-        }
-      } catch(e) {
-        toast(e.message || 'Error al asignar', 'error');
-      }
+        toast(email + ' asignado como ' + role + ' correctamente.', 'success');
+        setTimeout(function() { loadPlatformUsers(); }, 800);
+      } catch(e) { toast(e.message || 'Error al asignar', 'error'); }
     };
 
     var _banModalTarget = null;

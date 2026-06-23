@@ -559,6 +559,29 @@ def list_invitations(ws_id):
     } for i in invs])
 
 
+# ── POST /workspaces/set-participant  (god_admin) ─────────────
+@ws_bp.route("/set-participant", methods=["POST"])
+@jwt_required()
+def set_participant():
+    claims = get_jwt()
+    if claims.get("role") != "god_admin":
+        return jsonify(error="Solo god_admin"), 403
+
+    data  = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify(error="Email requerido"), 400
+
+    user = users().find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
+    if not user:
+        return jsonify(error="Usuario no encontrado"), 404
+
+    users().update_one({"_id": user["_id"]}, {"$set": {"role": "participant"}})
+    workspace_members().delete_many({"user_id": user["_id"]})
+
+    return jsonify(message=f"{email} ahora es participante"), 200
+
+
 # ── POST /workspaces/cleanup-membership  (temporal, god_admin) ─
 @ws_bp.route("/cleanup-membership", methods=["POST"])
 @jwt_required()
