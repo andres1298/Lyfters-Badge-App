@@ -33,7 +33,7 @@
         if (!user) {
           var next = encodeURIComponent(window.location.pathname + window.location.search);
           app.innerHTML =
-            '<div class="text-4xl mb-4">🏢</div>' +
+            '<div class="text-4xl mb-4"><img src="assets/icons/ui/icono-evento.png" style="width:18px;height:18px;object-fit:contain;"></div>' +
             '<h2 class="text-xl font-bold mb-2" style="color:#f4f6f9;">Fuiste invitado</h2>' +
             '<p class="text-gray-400 text-sm mb-6">Necesitás una cuenta para aceptar la invitación.</p>' +
             '<a href="register.html?invite_token=' + encodeURIComponent(wsToken||'') + '&invite_code=' + encodeURIComponent(wsCode||'') + '" class="w-full py-3 rounded-btn font-semibold block text-center mb-3" style="background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;text-decoration:none;">Crear cuenta y unirme</a>' +
@@ -41,7 +41,7 @@
           return;
         }
         app.innerHTML =
-          '<div class="text-4xl mb-4">🏢</div>' +
+          '<div class="text-4xl mb-4"><img src="assets/icons/ui/icono-evento.png" style="width:18px;height:18px;object-fit:contain;"></div>' +
           '<h2 class="text-xl font-bold mb-2" style="color:#f4f6f9;">Fuiste invitado a un workspace</h2>' +
           '<p class="text-gray-400 text-sm mb-6">Aceptá la invitación para unirte.</p>' +
           '<button id="btn-join-ws" class="w-full py-3 rounded-btn font-semibold" style="background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;border:none;cursor:pointer;font-size:16px;">Unirme al workspace</button>';
@@ -60,13 +60,13 @@
             var data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Error');
             app.innerHTML =
-              '<div class="text-5xl mb-4">🎉</div>' +
+              '<div class="text-5xl mb-4"><img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;"></div>' +
               '<h2 class="text-xl font-bold mb-2" style="color:#f4f6f9;">¡Bienvenido a ' + (data.workspace || 'el workspace') + '!</h2>' +
               '<p class="text-gray-400 text-sm mb-6">Rol: ' + (data.role || '') + '</p>' +
               '<a href="profile.html" class="w-full py-3 rounded-btn font-semibold block text-center" style="background:#6C63FF;color:#fff;text-decoration:none;">Ir al perfil</a>';
           } catch(e) {
             app.innerHTML =
-              '<div class="text-4xl mb-4">⚠️</div>' +
+              '<div class="text-4xl mb-4"><img src="assets/icons/ui/icono-alerta.png" style="width:20px;height:20px;object-fit:contain;"></div>' +
               '<p class="text-gray-400 mb-4">' + (e.message || 'Error') + '</p>' +
               '<a href="profile.html" class="text-sm" style="color:#6C63FF;">← Volver al perfil</a>';
           }
@@ -89,7 +89,7 @@
       API.joinEvent(eventId).then(function(r) {
         var msg = r.status === 'already_joined' ? 'Ya estás registrado en este evento.' : '¡Te uniste al evento!';
         app.innerHTML =
-          '<div class="text-5xl mb-4">🎉</div>' +
+          '<div class="text-5xl mb-4"><img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;"></div>' +
           '<h2 class="text-xl font-bold mb-2" style="color:#6C63FF;">' + msg + '</h2>' +
           '<p class="text-gray-500 text-sm mb-6">' + (r.event ? (r.event.name || r.event.nombre || '') : '') + '</p>' +
           '<button id="go-profile" class="w-full py-3 rounded-btn text-white font-semibold" style="background:#6C63FF;">Ver mis badges</button>';
@@ -99,7 +99,7 @@
         });
       }).catch(function(err) {
         app.innerHTML =
-          '<div class="text-4xl mb-4">⚠️</div>' +
+          '<div class="text-4xl mb-4"><img src="assets/icons/ui/icono-alerta.png" style="width:20px;height:20px;object-fit:contain;"></div>' +
           '<p class="text-gray-600 mb-4">' + (err.message || 'No se pudo unir al evento') + '</p>' +
           '<a href="profile.html" class="text-sm" style="color:#6C63FF;">← Volver al perfil</a>';
       });

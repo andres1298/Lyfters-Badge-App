@@ -265,7 +265,7 @@
         if (isExpired)       { icon = '🔒'; heading = U.t('redeem_session_expired'); }
         else if (isInvalid)  { icon = '❌'; heading = U.t('redeem_invalid_qr'); }
         else if (isInactive) { icon = '📭'; heading = U.t('redeem_event_unavailable'); }
-        else                 { icon = '⚠️'; heading = U.t('redeem_could_not'); }
+        else                 { icon = '<img src="assets/icons/ui/icono-alerta.png" style="width:20px;height:20px;object-fit:contain;">'; heading = U.t('redeem_could_not'); }
 
         var primaryBtn = isExpired
           ? '<button id="redeem-relogin" class="mt-6 w-full py-3 rounded-btn text-white font-semibold" style="background:#6C63FF;">' + U.t('redeem_login_again') + '</button>'

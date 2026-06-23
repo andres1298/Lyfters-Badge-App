@@ -83,7 +83,7 @@
           var wsRes = await fetch(API.base + '/workspaces/mine', { headers: API.authHeaders() });
           if (!wsRes.ok) {
             app.innerHTML = styles + '<div class="ws-main"><div class="ws-card" style="text-align:center;padding:48px;">' +
-              '<div style="font-size:48px;margin-bottom:16px;">🏢</div>' +
+              '<div style="margin-bottom:16px;"><img src="assets/icons/ui/icono-evento.png" style="width:18px;height:18px;object-fit:contain;"></div>' +
               '<p style="color:#8b93a3;font-size:15px;margin-bottom:24px;">No pertenecés a ningún workspace todavía.</p>' +
               '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
                 '<a href="profile.html" class="ws-btn outline" style="display:inline-flex;align-items:center;text-decoration:none;">← Volver al perfil</a>' +
@@ -247,7 +247,7 @@
             '<div class="ws-card-title">Invitar al workspace</div>' +
             '<div class="ws-tabs">' +
               '<button class="ws-tab active" id="tab-email" onclick="switchTab(\'email\')">📧 Por email</button>' +
-              '<button class="ws-tab" id="tab-code" onclick="switchTab(\'code\')">🔑 Por código</button>' +
+              '<button class="ws-tab" id="tab-code" onclick="switchTab(\'code\')"><img src="assets/icons/ui/icono-candado.png" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;"> Por código</button>' +
             '</div>' +
             '<div id="panel-email">' +
               '<div style="display:flex;gap:12px;flex-wrap:wrap;">' +
@@ -313,7 +313,7 @@
 
           (isGod ? '<div class="ws-card" style="margin-top:4px;">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;">' +
-              '<div class="ws-card-title" style="margin-bottom:0;">👥 Usuarios de la plataforma</div>' +
+              '<div class="ws-card-title" style="margin-bottom:0;display:flex;align-items:center;gap:6px;"><img src="assets/icons/ui/icono-usuarios.png" style="width:18px;height:18px;object-fit:contain;"> Usuarios de la plataforma</div>' +
               '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
                 '<input id="users-search" type="text" placeholder="Buscar..." oninput="filterPlatformUsers(this.value)" ' +
                   'style="height:36px;padding:0 12px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:13px;outline:none;width:220px;" />' +
@@ -477,7 +477,7 @@
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error');
-        U.toast('✅ Invitación enviada a ' + email + ' como ' + role, 'success');
+        U.toast('<img src="assets/icons/ui/icono-reclamado.png" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;"> Invitación enviada a ' + email + ' como ' + role, 'success');
         var inp = document.getElementById('god-email');
         if (inp) inp.value = '';
       } catch(e) { U.toast(e.message, 'error'); }

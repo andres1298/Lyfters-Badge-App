@@ -55,8 +55,8 @@
       skip_now: 'Omitir por ahora',
       connecting: 'Conectando...',
       welcome: '¡Bienvenido!',
-      welcome_google: '¡Bienvenido con Google! 🎉',
-      account_created: '¡Cuenta creada! 🎉',
+      welcome_google: '¡Bienvenido con Google! <img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;">',
+      account_created: '¡Cuenta creada! <img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;">',
       explore_events_title: 'Explorar eventos',
       recommended_for_you: '✨ Recomendados para ti',
       all_events: 'Todos los eventos',
@@ -80,9 +80,9 @@
       got_badge: '¡Obtuve el badge!',
       badge_already_obtained: 'Badge ya obtenido',
       error_try_again: 'Error — intentá de nuevo',
-      joined_event: '¡Te uniste al evento! 🎉',
+      joined_event: '¡Te uniste al evento! <img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;">',
       already_in_event: 'Ya estás en este evento',
-      completed_all_badges: 'Ya completaste todos los badges de este evento 🎉',
+      completed_all_badges: 'Ya completaste todos los badges de este evento <img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;">',
       admin_create_event: 'Crear evento',
       admin_create_event_desc: 'Configura un nuevo evento de badges',
       admin_event_name: 'Nombre del evento',
@@ -131,7 +131,7 @@
       admin_progress_dist: 'Distribución de progreso',
       admin_completion: 'Finalización',
       admin_top_badges: 'Badges más obtenidos',
-      admin_top_users: '👥 Top participantes',
+      admin_top_users: '<img src="assets/icons/ui/icono-usuarios.png" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;"> Top participantes',
       admin_activity: '⏰ Actividad por hora',
       admin_no_data: 'Sin datos',
       admin_no_activity: 'Sin datos de actividad',
@@ -217,8 +217,8 @@
       skip_now: 'Skip for now',
       connecting: 'Connecting...',
       welcome: 'Welcome!',
-      welcome_google: 'Welcome with Google! 🎉',
-      account_created: 'Account created! 🎉',
+      welcome_google: 'Welcome with Google! <img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;">',
+      account_created: 'Account created! <img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;">',
       explore_events_title: 'Explore events',
       recommended_for_you: '✨ Recommended for you',
       all_events: 'All events',
@@ -242,9 +242,9 @@
       got_badge: 'I got the badge!',
       badge_already_obtained: 'Badge already obtained',
       error_try_again: 'Error — try again',
-      joined_event: 'You joined the event! 🎉',
+      joined_event: 'You joined the event! <img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;">',
       already_in_event: 'You are already in this event',
-      completed_all_badges: 'You already completed all badges of this event 🎉',
+      completed_all_badges: 'You already completed all badges of this event <img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;">',
       admin_create_event: 'Create event',
       admin_create_event_desc: 'Configure a new badges event',
       admin_event_name: 'Event name',
@@ -293,7 +293,7 @@
       admin_progress_dist: 'Progress distribution',
       admin_completion: 'Completion',
       admin_top_badges: 'Most obtained badges',
-      admin_top_users: '👥 Top participants',
+      admin_top_users: '<img src="assets/icons/ui/icono-usuarios.png" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;"> Top participants',
       admin_activity: '⏰ Activity by hour',
       admin_no_data: 'No data',
       admin_no_activity: 'No activity data',
@@ -392,7 +392,7 @@
     var el = document.createElement('div');
     el.className = 'anim-slide pointer-events-auto text-white text-sm font-medium px-4 py-2.5 rounded-btn shadow-soft';
     el.style.background = TOAST_COLORS[type] || TOAST_COLORS.info;
-    el.textContent = msg;
+    el.innerHTML = msg;
     toastRoot.appendChild(el);
     setTimeout(function () {
       el.style.transition = 'opacity .3s'; el.style.opacity = '0';
@@ -467,7 +467,7 @@
   }
   function errorHtml(msg) {
     return '<div class="device-frame px-4 pt-24 text-center">' +
-      '<div class="text-3xl mb-2">⚠️</div>' +
+      '<div class="text-3xl mb-2"><img src="assets/icons/ui/icono-alerta.png" style="width:20px;height:20px;object-fit:contain;"></div>' +
       '<p class="text-sm text-gray-400">' + esc(msg) + '</p>' +
       '<button id="err-retry" class="mt-4 px-5 py-2.5 rounded-btn text-white font-medium text-sm" style="background:#6C63FF;">Reintentar</button>' +
       '</div>';
@@ -1538,7 +1538,7 @@
       var data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Código inválido o expirado');
       result.style.color = '#abd194';
-      result.textContent = '✅ Te uniste a ' + (data.workspace || 'el workspace') + ' como ' + (data.role || '') + '. Cerrá sesión y volvé a entrar para ver los cambios.';
+      result.innerHTML = '<img src="assets/icons/ui/icono-reclamado.png" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;"> Te uniste a ' + (data.workspace || 'el workspace') + ' como ' + (data.role || '') + '. Cerrá sesión y volvé a entrar para ver los cambios.';
       inp.value = '';
     } catch(e) {
       result.style.color = '#e68a8d';
