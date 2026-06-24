@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from pymongo.errors import DuplicateKeyError
 
-from db import users, events, badges, scans
+from db import users, events, badges, scans, event_joins
 from utils import valid_oid, haversine
 from security.limiter import redeem_limit
 from services.xp import award_xp, compute_level
@@ -52,6 +52,13 @@ def redeem_badge(event_id, token):
 
     user_oid  = ObjectId(uid)
     badge_oid = badge["_id"]
+
+    # Verificar que el usuario esté unido al evento
+    if not event_joins().find_one({"user_id": user_oid, "event_id": oid_event}):
+        return jsonify(
+            status="not_joined",
+            error="Debes unirte al evento primero escaneando el QR del evento."
+        ), 403
 
     # ── Insert atómico: el índice único (user_id, badge_id) en MongoDB garantiza
     # que dos requests simultáneas no puedan insertar el mismo scan dos veces.

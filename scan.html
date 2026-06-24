@@ -291,6 +291,12 @@
           showCelebration(r);
         } catch (err) {
           processing = false;
+          if (err.status === 'not_joined') {
+            scanning = true;
+            setStatus('');
+            U.toast('Debes unirte al evento primero. Escanea el QR del evento.', 'error');
+            return;
+          }
           setStatus(U.t('error_try_again'));
           U.toast(err.message || 'No se pudo canjear', 'error');
           setTimeout(function() {

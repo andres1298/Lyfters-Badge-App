@@ -679,7 +679,11 @@
       }
       throw new Error(data.error || 'Sesión expirada');
     }
-    if (!res.ok) throw new Error(data.error || ('Error ' + res.status));
+    if (!res.ok) {
+      var _err = new Error(data.error || ('Error ' + res.status));
+      if (data.status) _err.status = data.status;
+      throw _err;
+    }
     return data;
   }
 
