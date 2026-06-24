@@ -146,6 +146,43 @@ El archivo `render.yaml` configura el servicio con `rootDir: backend`. Variables
 
 Vercel despliega desde la raíz del repositorio. El archivo `vercel.json` incluye el rewrite necesario para la SPA (`/* → /index.html`).
 
+## Seguridad — Firebase API Key
+
+Las Firebase Web API Keys para apps web son **públicas por diseño** — Google las expone en el cliente para identificar el proyecto, no como secreto de autenticación. La seguridad real se implementa en dos capas:
+
+**1. Firebase Security Rules (Firestore)**
+
+Configurado en Firebase Console → Firestore Database → Rules:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false; // Nadie puede acceder sin autenticación
+    }
+  }
+}
+```
+
+**2. Restricción de API Key por HTTP referrer** ✅ Completado
+
+Configurado en Google Cloud Console → APIs & Services → Credentials → la API Key de Firebase:
+
+| Configuración | Valor |
+|---------------|-------|
+| Application restrictions | HTTP referrers |
+| Dominios autorizados | `https://liangso420-cell.github.io/*` |
+| | `https://lyfters-badge-app.vercel.app/*` |
+| | `http://localhost:*` |
+| API restrictions | Identity Toolkit API |
+
+La key solo funciona desde los dominios listados — si alguien la copia, no puede usarla desde otro origen.
+
+Ver documentación oficial: [Firebase API Keys](https://firebase.google.com/docs/projects/api-keys)
+
+---
+
 ## Inicializar la base de datos (opcional)
 
 El script `db/seed.js` es para MongoDB Shell (`mongosh`) y crea colecciones con validación de esquema, índices y datos de prueba:

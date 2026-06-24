@@ -26,20 +26,9 @@ window.LYFTER_CONFIG = {
   apiBaseUrl: 'https://lyfters-badge-app.onrender.com',
 };
 
-// NOTA: Las Firebase Web API Keys son públicas por diseño (Google las expone en el
-// cliente para identificar el proyecto, no como secreto de autenticación).
-// La seguridad se implementa exclusivamente vía Firebase Security Rules en la consola.
-// IMPORTANTE: Asegúrate de que las Firestore Rules NO permitan acceso anónimo:
-//   rules_version = '2';
-//   service cloud.firestore {
-//     match /databases/{database}/documents {
-//       match /{document=**} {
-//         allow read, write: if false;
-//       }
-//     }
-//   }
-// Restringe además la API Key en Google Cloud Console → APIs & Services → Credentials
-// → HTTP referrers → liangso420-cell.github.io/* y localhost/*
+// Firebase config — API Key restringida por HTTP referrer en Google Cloud Console
+// Solo funciona desde dominios autorizados: liangso420-cell.github.io, lyfters-badge-app.vercel.app, localhost
+// Restringida además a Identity Toolkit API. Ver: https://console.cloud.google.com/apis/credentials
 window.FIREBASE_CONFIG = {
 apiKey: "AIzaSyBedpuxJ7I4kVoi-0tni1rFjpFHgZUDd1A",
 authDomain: "lyfter-badge-app.firebaseapp.com",

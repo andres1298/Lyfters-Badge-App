@@ -21,3 +21,7 @@ node_modules/
 # Archivos temporales y logs
 *.log
 query
+
+# Nota: Firebase config en js/config.js es intencional para web apps públicas
+# La seguridad se maneja via Firebase Security Rules y restricciones de API Key por dominio
+# Ver: https://firebase.google.com/docs/projects/api-keys
