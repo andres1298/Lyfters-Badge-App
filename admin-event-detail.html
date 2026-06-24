@@ -87,7 +87,10 @@
         try {
           var data = await API.listAdminBadges(eid);
           var ev = data.event || data.evento;
-          if (!ev) throw new Error('No se pudo cargar el evento');
+          if (!ev) {
+            console.error('data recibida:', JSON.stringify(data));
+            throw new Error('No se pudo cargar el evento');
+          }
           var blist = data.badges || [];
 
           var statusLabel = STATUS_MAP[ev.status] ? STATUS_MAP[ev.status].label : (ev.status || '');
