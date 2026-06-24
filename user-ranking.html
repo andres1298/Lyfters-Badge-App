@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+  </style>
 </head>
 <body>
   <div id="loading-screen">
@@ -38,6 +41,44 @@
       if (['admin','superadmin','god_admin'].indexOf(user.role) !== -1) { window.location.replace('workspace-select.html'); return; }
 
       var app = document.getElementById('app');
+      var _rankCache = null, _rankCacheTime = 0;
+
+      function skeletonRows(n) {
+        var rows = '';
+        for (var i = 0; i < n; i++) {
+          rows += '<div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #2a2e38;">' +
+            '<div style="width:32px;height:32px;border-radius:50%;background:#2e323d;animation:pulse 1.5s infinite;flex-shrink:0;"></div>' +
+            '<div style="flex:1;">' +
+              '<div style="width:60%;height:13px;background:#2e323d;border-radius:6px;animation:pulse 1.5s infinite;margin-bottom:6px;"></div>' +
+              '<div style="width:35%;height:11px;background:#2e323d;border-radius:6px;animation:pulse 1.5s infinite;"></div>' +
+            '</div>' +
+            '<div style="width:50px;height:20px;background:#2e323d;border-radius:6px;animation:pulse 1.5s infinite;"></div>' +
+          '</div>';
+        }
+        return rows;
+      }
+
+      async function load() {
+        var now = Date.now();
+        if (_rankCache && now - _rankCacheTime < 60000) {
+          document.getElementById('panel-leaderboard').innerHTML = buildBadgeTable(_rankCache.lb);
+          document.getElementById('panel-ranking').innerHTML = buildXpTable(_rankCache.xp);
+          return;
+        }
+        try {
+          var [leaderboard, xpLeaderboard] = await Promise.all([
+            API.getLeaderboard(),
+            API.getXpLeaderboard()
+          ]);
+          _rankCache = { lb: leaderboard.slice(0, 8), xp: xpLeaderboard.slice(0, 8) };
+          _rankCacheTime = now;
+          document.getElementById('panel-leaderboard').innerHTML = buildBadgeTable(_rankCache.lb);
+          document.getElementById('panel-ranking').innerHTML = buildXpTable(_rankCache.xp);
+        } catch(e) {
+          document.getElementById('panel-leaderboard').innerHTML =
+            '<p style="color:#e68a8d;text-align:center;padding:24px;font-family:Manrope,sans-serif;">Error al cargar.</p>';
+        }
+      }
 
       function navHtml() {
         return '<div style="display:flex;gap:4px;margin-bottom:24px;background:#1c1f27;border:1px solid #2f343f;border-radius:12px;padding:4px;">' +
@@ -165,8 +206,8 @@
                 '<button id="tab-ranking" style="flex:1;padding:16px;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;border:none;cursor:pointer;background:transparent;color:#8b93a3;border-bottom:2px solid transparent;">Ranking Global</button>' +
               '</div>' +
               '<div style="padding:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;">' +
-                '<div id="panel-leaderboard"><p style="color:#8b93a3;font-family:Manrope,sans-serif;text-align:center;padding:32px;">Cargando...</p></div>' +
-                '<div id="panel-ranking" style="display:none;"><p style="color:#8b93a3;font-family:Manrope,sans-serif;text-align:center;padding:32px;">Cargando...</p></div>' +
+                '<div id="panel-leaderboard">' + skeletonRows(5) + '</div>' +
+                '<div id="panel-ranking" style="display:none;">' + skeletonRows(5) + '</div>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -189,46 +230,29 @@
           } catch(e) { U.showDrawer(null, null, null, false); }
         });
 
+        document.getElementById('tab-leaderboard').addEventListener('click', function() {
+          document.getElementById('panel-leaderboard').style.display = '';
+          document.getElementById('panel-ranking').style.display = 'none';
+          this.style.background = 'linear-gradient(90deg,rgba(216,151,231,0.18),rgba(230,138,141,0.10))';
+          this.style.color = '#f4f6f9';
+          this.style.borderBottom = '2px solid #d897e7';
+          document.getElementById('tab-ranking').style.background = 'transparent';
+          document.getElementById('tab-ranking').style.color = '#8b93a3';
+          document.getElementById('tab-ranking').style.borderBottom = '2px solid transparent';
+        });
+        document.getElementById('tab-ranking').addEventListener('click', function() {
+          document.getElementById('panel-ranking').style.display = '';
+          document.getElementById('panel-leaderboard').style.display = 'none';
+          this.style.background = 'linear-gradient(90deg,rgba(216,151,231,0.18),rgba(230,138,141,0.10))';
+          this.style.color = '#f4f6f9';
+          this.style.borderBottom = '2px solid #d897e7';
+          document.getElementById('tab-leaderboard').style.background = 'transparent';
+          document.getElementById('tab-leaderboard').style.color = '#8b93a3';
+          document.getElementById('tab-leaderboard').style.borderBottom = '2px solid transparent';
+        });
+
         U.hideLoading();
-
-        function setupTabs() {
-          document.getElementById('tab-leaderboard').addEventListener('click', function() {
-            document.getElementById('panel-leaderboard').style.display = '';
-            document.getElementById('panel-ranking').style.display = 'none';
-            this.style.background = 'linear-gradient(90deg,rgba(216,151,231,0.18),rgba(230,138,141,0.10))';
-            this.style.color = '#f4f6f9';
-            this.style.borderBottom = '2px solid #d897e7';
-            document.getElementById('tab-ranking').style.background = 'transparent';
-            document.getElementById('tab-ranking').style.color = '#8b93a3';
-            document.getElementById('tab-ranking').style.borderBottom = '2px solid transparent';
-          });
-          document.getElementById('tab-ranking').addEventListener('click', function() {
-            document.getElementById('panel-ranking').style.display = '';
-            document.getElementById('panel-leaderboard').style.display = 'none';
-            this.style.background = 'linear-gradient(90deg,rgba(216,151,231,0.18),rgba(230,138,141,0.10))';
-            this.style.color = '#f4f6f9';
-            this.style.borderBottom = '2px solid #d897e7';
-            document.getElementById('tab-leaderboard').style.background = 'transparent';
-            document.getElementById('tab-leaderboard').style.color = '#8b93a3';
-            document.getElementById('tab-leaderboard').style.borderBottom = '2px solid transparent';
-          });
-        }
-
-        try {
-          var [leaderboard, xpLeaderboard] = await Promise.all([
-            API.getLeaderboard(),
-            API.getXpLeaderboard()
-          ]);
-          var top8 = leaderboard.slice(0, 8);
-          var top8xp = xpLeaderboard.slice(0, 8);
-
-          document.getElementById('panel-leaderboard').innerHTML = buildBadgeTable(top8);
-          document.getElementById('panel-ranking').innerHTML = buildXpTable(top8xp);
-
-          setupTabs();
-        } catch(e) {
-          document.getElementById('panel-leaderboard').innerHTML = '<p style="color:#e68a8d;font-family:Manrope,sans-serif;text-align:center;padding:32px;">Error al cargar datos.</p>';
-        }
+        await load();
       }
 
       init();

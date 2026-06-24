@@ -285,7 +285,7 @@ def global_leaderboard():
         return badges_total, events_participated, achievements_count
 
     # Top 50 por XP total — solo usuarios que no ocultaron su perfil.
-    top = list(users().find(_PRIVACY_VISIBLE, {"name": 1, "xp_total": 1}).sort("xp_total", -1).limit(50))
+    top = list(users().find(_PRIVACY_VISIBLE, {"name": 1, "xp_total": 1}).sort("xp_total", -1).limit(8))
 
     ranking = []
     for i, u in enumerate(top):
