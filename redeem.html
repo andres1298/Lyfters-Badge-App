@@ -84,8 +84,8 @@
         var isLast = r.complete && !isDup;
         var badge  = r.badge || {};
         var icon = badge.icon_url
-          ? '<img src="' + badge.icon_url + '" style="width:80px;height:80px;object-fit:contain;">'
-          : (badge.emoji || '<img src="assets/icons/ui/icono-reclamado.png" style="width:48px;height:48px;object-fit:contain;">');
+          ? '<img src="' + badge.icon_url + '" style="width:64px;height:64px;object-fit:contain;display:block;margin:0 auto;">'
+          : '<img src="assets/icons/ui/icono-reclamado.png" style="width:64px;height:64px;object-fit:contain;display:block;margin:0 auto;">';
         var user   = API.currentUser() || {};
         var userName = user.name ? user.name.split(' ')[0] : '';
 
@@ -108,12 +108,7 @@
         }
 
 
-        var animBlock = !isDup
-          ? '<div style="text-align:center;margin-bottom:20px;">' +
-              '<h2 style="font-family:Poppins,sans-serif;font-size:20px;font-weight:700;color:#d897e7;margin:0 0 4px;">¡Te uniste al evento!</h2>' +
-              '<p style="font-family:Manrope,sans-serif;font-size:14px;color:#8b93a3;">Badge obtenido exitosamente</p>' +
-            '</div>'
-          : '';
+        var animBlock = '';
 
         var prizeBlock = (isLast && r.prize)
           ? '<div class="prize-box">' +
@@ -206,19 +201,18 @@
           '<section style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;box-sizing:border-box;background:' + bgGradient + ';">' +
             '<div class="redeem-card anim-pop">' +
               animBlock +
-              '<div class="badge-glow" style="background:' + bgGradient + ';">' + icon + '</div>' +
+              '<div style="text-align:center;margin-bottom:16px;">' + icon + '</div>' +
               '<h2 class="redeem-title" style="color:' + accentColor + ';">' + title + '</h2>' +
               '<p class="redeem-sub">' + subtitle + '</p>' +
               xpBlock +
               progressBlock +
               prizeBlock +
               shareButtons +
-              '<button id="redeem-profile" class="redeem-profile-btn" style="background:' + accentColor + ';">' + U.t('redeem_view_profile') + '</button>' +
+              '<button id="btn-genial" class="redeem-profile-btn" style="background:' + accentColor + ';">' + U.t('awesome') + '</button>' +
             '</div>' +
           '</section>';
 
-        setTimeout(function() { window.location.href = 'user-events.html'; }, 2500);
-        document.getElementById('redeem-profile').addEventListener('click', function () {
+        document.getElementById('btn-genial').addEventListener('click', function () {
           window.location.href = 'user-events.html';
         });
 
