@@ -590,21 +590,19 @@ body.font-large  { font-size: 20px; }
    backgrounds + backdrop-filter so stars show blurred behind content.
 ══════════════════════════════════════════════════════════════ */
 
-/* Base body: dark foundation beneath stars canvas */
-body {
-  background: #0d0f14 !important;
+/* html keeps dark base for scrollbar/edge areas */
+html {
+  background: #0d0f14;
 }
 
-/* #app: transparent so canvas shows through to cards */
-#app {
+/* body transparent so stars canvas shows through */
+body {
   background: transparent !important;
 }
 
-/* ── Page-level content wrappers: thin glass layer ── */
+/* ── Page-level content wrappers: transparent so stars show ── */
 #admin-main {
-  background: rgba(13, 15, 20, 0.30) !important;
-  backdrop-filter: blur(2px) !important;
-  -webkit-backdrop-filter: blur(2px) !important;
+  background: transparent !important;
 }
 
 /* ── Cards: frosted glass ── */
