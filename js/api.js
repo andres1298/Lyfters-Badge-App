@@ -765,8 +765,8 @@
       var body = coords ? { lat: coords.lat, lng: coords.lng } : {};
       var d = await apiRequest('POST', '/redeem/' + eventId + '/' + token, body);
       return {
-        status: d.status === 'duplicado' ? 'duplicate' : 'ok',
-        badge: d.badge ? { emoji: d.badge.icon || '', name: d.badge.nombre, desc: d.badge.descripcion } : null,
+        status: (d.status === 'duplicado' || d.status === 'already_redeemed' || d.status === 'duplicate') ? 'duplicate' : (d.status === 'none' ? 'none' : 'ok'),
+        badge: d.badge ? { emoji: d.badge.icon || '', icon_url: d.badge.icon_url || null, name: d.badge.name || d.badge.nombre || '', desc: d.badge.descripcion || '' } : null,
         complete: !!d.completado, prize: d.premio || null,
         progress: d.progreso ? { obtained: d.progreso.obtenidos, total: d.progreso.total } : null,
         xp: { gained: d.xp_gained || 0, total: d.xp_total || 0, level: d.level || 1, levelUp: !!d.level_up },
