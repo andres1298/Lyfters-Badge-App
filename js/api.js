@@ -23,6 +23,9 @@
   }
   function clearSession() {
     try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    // Limpiar también el contexto de workspace activo, que viaja como
+    // header X-Workspace-Id; si no, una re-sesión arrastraría un ws ajeno.
+    try { sessionStorage.removeItem('lyfter_active_ws'); } catch (e) {}
     sessionMem = null;
   }
 
@@ -674,15 +677,23 @@
     }
     var data = {};
     try { data = await res.json(); } catch (e) {}
-    if (res.status === 401) {
+    // Sesión inválida al verificar el token: el backend responde 401 (token
+    // inválido/expirado) o 404 con error_code "user_not_found" (token válido
+    // pero el usuario autenticado ya no existe). En ambos casos limpiamos la
+    // sesión y mandamos al login en vez de dejar la app trabada.
+    // Nota: el 404 "Usuario no encontrado" de operaciones admin sobre OTRO
+    // usuario NO trae ese error_code, así que no dispara logout.
+    var sessionInvalid = res.status === 401 ||
+      (res.status === 404 && data.error_code === 'user_not_found');
+    if (sessionInvalid) {
       clearSession();
       var _p = window.location.pathname;
       if (!_p.includes('login.html') && !_p.includes('register.html')) {
         window.location.replace('login.html?next=' + encodeURIComponent(_p + window.location.search + window.location.hash));
       }
-      var _err401 = new Error(data.error || 'Sesión expirada');
-      if (data.error_code) _err401.code = data.error_code;
-      throw _err401;
+      var _errAuth = new Error(data.error || 'Sesión expirada');
+      if (data.error_code) _errAuth.code = data.error_code;
+      throw _errAuth;
     }
     if (!res.ok) {
       var _err = new Error(data.error || ('Error ' + res.status));

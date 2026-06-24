@@ -59,7 +59,7 @@ def switch_workspace():
 
     user_doc = users().find_one({"_id": ObjectId(user_id)})
     if not user_doc:
-        return jsonify(error="Usuario no encontrado"), 404
+        return jsonify(error="Usuario no encontrado", error_code="user_not_found"), 404
 
     role = get_jwt().get("role", "participant")
     member = workspace_members().find_one({"user_id": ObjectId(user_id), "workspace_id": ws_oid})
@@ -85,7 +85,7 @@ def refresh_token():
     user_id = get_jwt_identity()
     user_doc = users().find_one({"_id": ObjectId(user_id)})
     if not user_doc:
-        return jsonify(error="Usuario no encontrado"), 404
+        return jsonify(error="Usuario no encontrado", error_code="user_not_found"), 404
 
     member = workspace_members().find_one(
         {"user_id": ObjectId(user_id)},
@@ -165,7 +165,7 @@ def get_profile():
     uid = get_jwt_identity()
     u = users().find_one({"_id": ObjectId(uid)}, {"password_hash": 0})
     if not u:
-        return jsonify(error="Usuario no encontrado"), 404
+        return jsonify(error="Usuario no encontrado", error_code="user_not_found"), 404
     return jsonify({
         "id":      str(u["_id"]),
         "nombre":  u.get("name", ""),
