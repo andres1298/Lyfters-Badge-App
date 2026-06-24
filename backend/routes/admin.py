@@ -398,11 +398,11 @@ def admin_list_badges(event_id):
         result_badges.append(fmt_admin_badge(b, canjeados=canjeados, base_url=base_url))
 
     return jsonify({
-        "evento": {
+        "event": {
             "id":        str(event["_id"]),
-            "nombre":    event.get("title", ""),
+            "name":      event.get("title", event.get("name", "")),
             "access_qr": event.get("access_qr", None),
-            "photo":     event.get("photo", None),
+            "photo":     event.get("photo", event.get("photo_url", None)),
             "status":    compute_event_status(event),
             "lat":       event.get("lat"),
             "lng":       event.get("lng"),
