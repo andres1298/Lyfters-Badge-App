@@ -1,6 +1,8 @@
 (function () {
   'use strict';
-
+// ── Set page background on <html> so body stays transparent for the canvas ──
+document.documentElement.style.background = '#15171d';
+document.body.style.background = 'transparent';
   // ── Aurora blob ──────────────────────────────────────────────────────────
   var aurora = document.createElement('div');
   aurora.style.cssText = [
