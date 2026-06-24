@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Evaluación Oficial v2 — Lyfter Badge App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ground:    #090c14;
+    --surface:   #0f1422;
+    --surface-2: #151929;
+    --border:    #1e2438;
+    --border-2:  #252c42;
+    --text:      #ced5e8;
+    --text-dim:  #6b7594;
+    --text-mid:  #8e9ab8;
+    --accent:    #5b8af0;
+    --accent-2:  #d897e7;
+    --crit:      #e05b5b;
+    --warn:      #f59e3a;
+    --ok:        #4ac9a0;
+    --partial:   #a78bfa;
+    --crit-bg:   rgba(224,91,91,0.10);
+    --warn-bg:   rgba(245,158,58,0.10);
+    --ok-bg:     rgba(74,201,160,0.10);
+    --partial-bg:rgba(167,139,250,0.10);
+    --font-d: 'Space Grotesk', system-ui, sans-serif;
+    --font-b: 'Inter', system-ui, sans-serif;
+    --font-m: 'JetBrains Mono', monospace;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--ground); color: var(--text); font-family: var(--font-b); font-size: 14px; line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(91,138,240,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(91,138,240,0.025) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
+  .page { position: relative; z-index: 1; max-width: 980px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* HEADER */
+  .rh { padding: 56px 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .rl { font-family: var(--font-m); font-size: 11px; letter-spacing: .18em; color: var(--accent); text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .rl::before { content: ''; display: inline-block; width: 28px; height: 1px; background: var(--accent); }
+  .rt { font-family: var(--font-d); font-size: clamp(28px,5vw,42px); font-weight: 700; color: #f0f3ff; line-height: 1.15; margin-bottom: 10px; letter-spacing: -.02em; }
+  .rt span { color: var(--accent-2); }
+  .rm { font-family: var(--font-m); font-size: 12px; color: var(--text-dim); display: flex; gap: 24px; flex-wrap: wrap; margin-top: 20px; }
+  .rm span { display: flex; align-items: center; gap: 6px; }
+  .rm span::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+  .delta-badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-m); font-size: 11px; padding: 4px 10px; border-radius: 999px; background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(74,201,160,.3); margin-top: 14px; }
+  .delta-badge::before { content: '↑'; font-weight: 700; }
+
+  /* HERO */
+  .sh { display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 36px 40px; margin-bottom: 12px; position: relative; overflow: hidden; }
+  .sh::after { content: ''; position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(91,138,240,.12), transparent 70%); pointer-events: none; }
+  .sd { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  .sd svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+  .sd-track { fill: none; stroke: var(--border-2); stroke-width: 8; }
+  .sd-fill  { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 301.59; stroke-dashoffset: 72; }
+  .sd-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .sd-num { font-family: var(--font-d); font-size: 30px; font-weight: 700; color: #f0f3ff; line-height: 1; }
+  .sd-den { font-family: var(--font-m); font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .sh-r { min-width: 0; }
+  .sh-v { font-family: var(--font-d); font-size: 20px; font-weight: 700; color: #f0f3ff; margin-bottom: 6px; }
+  .sh-s { font-size: 14px; color: var(--text-mid); margin-bottom: 20px; line-height: 1.5; }
+  .sg { display: flex; flex-direction: column; gap: 10px; }
+  .sr { display: grid; grid-template-columns: 130px 1fr auto; align-items: center; gap: 12px; }
+  .sl { font-family: var(--font-m); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+  .sb-wrap { display: flex; gap: 3px; }
+  .sb { height: 12px; border-radius: 2px; flex: 1; background: var(--border-2); }
+  .sb.f  { background: var(--accent); }
+  .sb.g  { background: var(--ok); }
+  .sb.w  { background: var(--warn); }
+  .sb.c  { background: var(--crit); }
+  .ss { font-family: var(--font-d); font-size: 13px; font-weight: 600; color: var(--text); min-width: 52px; text-align: right; }
+
+  /* DELTA PANEL */
+  .delta-panel { background: var(--surface); border: 1px solid rgba(74,201,160,.2); border-radius: 12px; padding: 20px 24px; margin-bottom: 48px; }
+  .delta-title { font-family: var(--font-d); font-size: 15px; font-weight: 700; color: #f0f3ff; margin-bottom: 14px; }
+  .delta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dc { border-radius: 8px; padding: 10px 14px; border: 1px solid var(--border); }
+  .dc.fixed { border-color: rgba(74,201,160,.25); background: var(--ok-bg); }
+  .dc.new-issue { border-color: rgba(224,91,91,.25); background: var(--crit-bg); }
+  .dc-label { font-family: var(--font-m); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
+  .dc.fixed .dc-label { color: var(--ok); }
+  .dc.new-issue .dc-label { color: var(--crit); }
+  .dc-text { font-size: 13px; color: var(--text); line-height: 1.4; font-weight: 500; }
+
+  /* SECTION */
+  .section { margin-bottom: 48px; }
+  .sech { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .sect { font-family: var(--font-d); font-size: 18px; font-weight: 700; color: #f0f3ff; letter-spacing: -.01em; }
+  .secb { font-family: var(--font-m); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; background: var(--border); color: var(--text-dim); }
+  .secb.ac { background: rgba(91,138,240,.15); color: var(--accent); }
+
+  /* SCORE TABLE */
+  .stbl { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .stbl th { font-family: var(--font-m); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim); padding: 12px 16px; text-align: left; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  .stbl th:last-child { text-align: right; }
+  .stbl td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .stbl tr:last-child td { border-bottom: none; }
+  .stbl td:first-child { font-family: var(--font-d); font-size: 14px; font-weight: 600; color: var(--text); }
+  .stbl td:last-child { text-align: right; font-family: var(--font-d); font-weight: 700; }
+  .stbl .tr td { background: var(--surface-2); padding-top: 16px; padding-bottom: 16px; }
+  .stbl .tr td:first-child { color: #f0f3ff; font-size: 15px; }
+  .sc { font-family: var(--font-d); font-size: 15px; font-weight: 700; color: var(--accent); }
+  .sc.tot { font-size: 20px; color: #f0f3ff; }
+  .sc.ok { color: var(--ok); }
+  .sc.warn { color: var(--warn); }
+  .sc.crit { color: var(--crit); }
+
+  /* CHECKLIST */
+  .cl { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .clg { border-bottom: 1px solid var(--border); }
+  .clg:last-child { border-bottom: none; }
+  .clgl { font-family: var(--font-m); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim); padding: 10px 16px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  .ci { display: grid; grid-template-columns: 22px 1fr auto; align-items: start; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); transition: background .15s; }
+  .ci:last-child { border-bottom: none; }
+  .ci:hover { background: rgba(255,255,255,.02); }
+  .ci-icon { font-size: 13px; margin-top: 1px; }
+  .ci-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+  .ci-ev { font-family: var(--font-m); font-size: 11px; color: var(--text-dim); white-space: nowrap; background: var(--border); padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+  .ci.ok .ci-icon::before { content: '✅'; }
+  .ci.partial .ci-icon::before { content: '⚠️'; }
+  .ci.fail .ci-icon::before { content: '❌'; }
+
+  /* SECURITY GRID */
+  .sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sc2 { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .sc2-l { font-family: var(--font-m); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 5px; }
+  .sc2-v { font-size: 13px; color: var(--text); line-height: 1.4; font-weight: 500; }
+  .sc2.ok-c  { border-color: rgba(74,201,160,.2); }
+  .sc2.wa-c  { border-color: rgba(245,158,58,.2); }
+  .sc2.ba-c  { border-color: rgba(224,91,91,.2); }
+  .sc2.ok-c .sc2-v { color: var(--ok); }
+  .sc2.wa-c .sc2-v { color: var(--warn); }
+  .sc2.ba-c .sc2-v { color: var(--crit); }
+
+  /* ERROR CARDS */
+  .el { display: flex; flex-direction: column; gap: 10px; }
+  .ec { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; position: relative; }
+  .ec-acc { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .ec.crit .ec-acc { background: var(--crit); }
+  .ec.high .ec-acc { background: var(--warn); }
+  .ec.med  .ec-acc { background: var(--partial); }
+  .ec.low  .ec-acc { background: var(--ok); }
+  .ec-in { padding: 14px 16px 14px 22px; }
+  .ec-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .sev { font-family: var(--font-m); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+  .sev.crit { background: var(--crit-bg); color: var(--crit); }
+  .sev.high { background: var(--warn-bg); color: var(--warn); }
+  .sev.med  { background: var(--partial-bg); color: var(--partial); }
+  .sev.low  { background: var(--ok-bg); color: var(--ok); }
+  .sev.fixed { background: rgba(74,201,160,.1); color: var(--ok); }
+  .et { font-family: var(--font-d); font-size: 14px; font-weight: 600; color: #f0f3ff; }
+  .eb { font-size: 13px; color: var(--text-mid); line-height: 1.5; margin-bottom: 8px; }
+  .ef { font-size: 12px; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; line-height: 1.5; }
+  .ef strong { color: var(--text-mid); font-weight: 600; }
+  code { font-family: var(--font-m); font-size: 11px; background: var(--border); padding: 1px 5px; border-radius: 3px; color: var(--accent-2); }
+
+  /* VERDICT */
+  .vb { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 36px 40px; position: relative; overflow: hidden; }
+  .vb::before { content: ''; position: absolute; bottom: -40px; left: -40px; width: 160px; height: 160px; background: radial-gradient(circle, rgba(216,151,231,.08), transparent 70%); pointer-events: none; }
+  .vq { font-family: var(--font-m); font-size: 11px; color: var(--text-dim); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 12px; }
+  .va { font-family: var(--font-d); font-size: clamp(20px,3vw,26px); font-weight: 700; color: #f0f3ff; margin-bottom: 20px; letter-spacing: -.01em; line-height: 1.3; }
+  .va .yes { color: var(--ok); }
+  .va .but { color: var(--warn); }
+  .vbody { font-size: 14px; color: var(--text-mid); line-height: 1.6; max-width: 640px; }
+  .vbody p + p { margin-top: 12px; }
+  .vpills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+  .vp { font-family: var(--font-m); font-size: 11px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-2); color: var(--text-dim); }
+  .vp.s { border-color: rgba(74,201,160,.35); color: var(--ok); background: var(--ok-bg); }
+  .vp.w { border-color: rgba(224,91,91,.35); color: var(--crit); background: var(--crit-bg); }
+
+  hr.div { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+  .rf { padding-top: 32px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .rf-l, .rf-r { font-family: var(--font-m); font-size: 11px; color: var(--text-dim); }
+
+  @media(max-width:600px){
+    .sh{grid-template-columns:1fr;}.sd{width:80px;height:80px;margin:0 auto;}.sd svg{width:80px;height:80px;}.sd-num{font-size:22px;}.sr{grid-template-columns:110px 1fr auto;}.sgrid{grid-template-columns:1fr;}.vb{padding:24px 20px;}.delta-grid{grid-template-columns:1fr;}
+  }
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<header class="rh">
+  <div class="rl">Evaluación oficial del proyecto — Revisión v2</div>
+  <h1 class="rt">Lyfter <span>Badge</span> App<br>— Auditoría Técnica v2</h1>
+  <div class="rm">
+    <span>Tech Lead Senior + QA Engineer</span>
+    <span>Revisión completa de código fuente</span>
+    <span>Junio 2026</span>
+    <span>v2.0 — Post-fixes de seguridad</span>
+  </div>
+  <div class="delta-badge">+2 pts vs v1 — de 76 a 78</div>
+</header>
+
+<!-- HERO SCORE -->
+<section class="sh" aria-label="Puntaje global">
+  <div class="sd">
+    <svg viewBox="0 0 110 110">
+      <circle class="sd-track" cx="55" cy="55" r="48"/>
+      <circle class="sd-fill" cx="55" cy="55" r="48"/>
+    </svg>
+    <div class="sd-label">
+      <span class="sd-num">78</span>
+      <span class="sd-den">/ 100</span>
+    </div>
+  </div>
+  <div class="sh-r">
+    <div class="sh-v">Funcional con nuevas vulnerabilidades descubiertas</div>
+    <div class="sh-s">Los fixes de seguridad de la v1 se aplicaron correctamente. La revisión exhaustiva del código revela XSS en el sistema de toasts y una lógica de roles con un bug de rankeo que deben cerrarse.</div>
+    <div class="sg">
+      <!-- Funcionalidad Core 35/40 = 87.5% → 17.5/20 barras → 18 rellenas -->
+      <div class="sr">
+        <span class="sl">Funcionalidad Core</span>
+        <div class="sb-wrap">
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span>
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span>
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb w"></span>
+          <span class="sb w"></span><span class="sb w"></span><span class="sb c"></span><span class="sb"></span><span class="sb"></span>
+        </div>
+        <span class="ss">35 / 40</span>
+      </div>
+      <!-- Frontend 14/20 = 70% → 14 barras -->
+      <div class="sr">
+        <span class="sl">Frontend</span>
+        <div class="sb-wrap">
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span>
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb w"></span><span class="sb w"></span>
+          <span class="sb w"></span><span class="sb c"></span><span class="sb c"></span><span class="sb c"></span>
+          <span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span>
+        </div>
+        <span class="ss">14 / 20</span>
+      </div>
+      <!-- Producción 15/20 = 75% → 15 barras -->
+      <div class="sr">
+        <span class="sl">Demo y Producción</span>
+        <div class="sb-wrap">
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span>
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span>
+          <span class="sb w"></span><span class="sb w"></span><span class="sb w"></span><span class="sb c"></span><span class="sb c"></span>
+          <span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span>
+        </div>
+        <span class="ss">15 / 20</span>
+      </div>
+      <!-- Calidad 14/20 -->
+      <div class="sr">
+        <span class="sl">Calidad de Código</span>
+        <div class="sb-wrap">
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span>
+          <span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb g"></span><span class="sb w"></span>
+          <span class="sb w"></span><span class="sb c"></span><span class="sb c"></span><span class="sb c"></span>
+          <span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span>
+        </div>
+        <span class="ss">14 / 20</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DELTA vs v1 -->
+<div class="delta-panel">
+  <div class="delta-title">Cambios respecto a la auditoría v1</div>
+  <div class="delta-grid">
+    <div class="dc fixed"><div class="dc-label">✅ Corregido</div><div class="dc-text">Race condition en redención — upsert atómico con DuplicateKeyError</div></div>
+    <div class="dc fixed"><div class="dc-label">✅ Corregido</div><div class="dc-text">Reset password token ya no se devuelve en el JSON de respuesta</div></div>
+    <div class="dc fixed"><div class="dc-label">✅ Corregido</div><div class="dc-text">Privacidad respetada en los 4 endpoints de leaderboard</div></div>
+    <div class="dc fixed"><div class="dc-label">✅ Corregido</div><div class="dc-text">delete_many redundante eliminado de delete_event (1 write extra)</div></div>
+    <div class="dc fixed"><div class="dc-label">✅ Corregido</div><div class="dc-text">Logros: endpoint /auth/achievements/definitions — fin de la duplicación</div></div>
+    <div class="dc fixed"><div class="dc-label">✅ Corregido</div><div class="dc-text">ACHIEVEMENT_ICONS incluye slugs en inglés y español (sin íconos rotos)</div></div>
+    <div class="dc new-issue"><div class="dc-label">🔴 Nuevo hallazgo</div><div class="dc-text">XSS en sistema de toasts — innerHTML sin escape en js/utils.js:395</div></div>
+    <div class="dc new-issue"><div class="dc-label">🟠 Nuevo hallazgo</div><div class="dc-text">Bug en _ROLE_RANK: rol 'admin' ausente del mapa — rankea en 0</div></div>
+    <div class="dc new-issue"><div class="dc-label">🟠 Nuevo hallazgo</div><div class="dc-text">MONGO_URI fallback a localhost en db.py:31 si la var de entorno falla</div></div>
+    <div class="dc new-issue"><div class="dc-label">🟡 Nuevo hallazgo</div><div class="dc-text">CORS acepta cualquier *.vercel.app — debería ser solo el deployment propio</div></div>
+  </div>
+</div>
+
+<!-- TABLA OFICIAL -->
+<section class="section">
+  <div class="sech"><h2 class="sect">Evaluación Oficial</h2><span class="secb ac">Scoring v2</span></div>
+  <table class="stbl">
+    <thead><tr><th>Categoría</th><th>Qué se evaluó</th><th>Máximo</th><th>Obtenido</th></tr></thead>
+    <tbody>
+      <tr><td>Funcionalidad Core</td><td style="color:var(--text-dim);font-size:12px;">Auth, Eventos, Badges, Redención atómica, Perfil, XP</td><td style="color:var(--text-mid);">40</td><td><span class="sc ok">35</span></td></tr>
+      <tr><td>Frontend</td><td style="color:var(--text-dim);font-size:12px;">Pantallas, responsive, UX, toasts, admin completo</td><td style="color:var(--text-mid);">20</td><td><span class="sc warn">14</span></td></tr>
+      <tr><td>Demo y Producción</td><td style="color:var(--text-dim);font-size:12px;">render.yaml, vercel.json, vars de entorno, QR en prod</td><td style="color:var(--text-mid);">20</td><td><span class="sc warn">15</span></td></tr>
+      <tr><td>Calidad de Código</td><td style="color:var(--text-dim);font-size:12px;">Estructura, atomicidad, duplicación, manejo de errores</td><td style="color:var(--text-mid);">20</td><td><span class="sc warn">14</span></td></tr>
+      <tr class="tr"><td><strong>TOTAL</strong></td><td style="color:var(--text-dim);font-size:12px;">—</td><td style="color:var(--text-mid);font-weight:700;">100</td><td><span class="sc tot">78</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- CHECKLIST -->
+<section class="section">
+  <div class="sech"><h2 class="sect">Checklist de Cumplimiento</h2><span class="secb">Por requisito</span></div>
+  <div class="cl">
+
+    <div class="clg">
+      <div class="clgl">1 — Autenticación</div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">POST /auth/register con bcrypt, validación email/password, ip_guard y register_limit</span><span class="ci-ev">auth.py:123</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">POST /auth/login con rate limiting dual (participant/admin), ban detection y check de IP</span><span class="ci-ev">auth.py:293</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">JWT con claims: role, name, workspace_id, workspace_role. TTL 8 horas.</span><span class="ci-ev">app.py:33</span></div>
+      <div class="ci partial"><span class="ci-icon"></span><span class="ci-text">JWT_SECRET: tiene generateValue:true en render.yaml pero fallback "dev_secret_cambia_esto" en app.py si el env var no se carga</span><span class="ci-ev">app.py:33</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Roles implementados: participant, admin, superadmin, god_admin con decoradores de protección</span><span class="ci-ev">utils.py:require_admin</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Google OAuth: verifica idToken con id_token.verify_firebase_token (server-side)</span><span class="ci-ev">auth.py:361</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Forgot password: Resend envía el email desde el servidor. El token ya NO se devuelve en el JSON.</span><span class="ci-ev">auth.py:415 ✅ fix v2</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Reset password: busca por token + valida expiración 1h. Invalida el token al usar.</span><span class="ci-ev">auth.py:428</span></div>
+    </div>
+
+    <div class="clg">
+      <div class="clgl">2 — Eventos</div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">CRUD completo: POST/GET/PATCH/DELETE en /admin/events con validaciones</span><span class="ci-ev">admin.py:76-335</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Estados de evento calculados dinámicamente (upcoming, open, ongoing, closed) con override manual</span><span class="ci-ev">utils.py:59</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Filtrado por workspace en list_events() — query incluye workspace_id del JWT</span><span class="ci-ev">events.py:41</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Geo-validación en join y redención (Haversine, radio 1km) cuando el evento tiene coordenadas</span><span class="ci-ev">redeem.py:41</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">DELETE en cascada: borra badges y scans asociados (un solo delete_many por badge_ids)</span><span class="ci-ev">admin.py:265 ✅ fix v2</span></div>
+    </div>
+
+    <div class="clg">
+      <div class="clgl">3 — Badges y QR</div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Crear badge con nombre, descripción, ícono, XP, rareza y asociación al evento</span><span class="ci-ev">admin.py:411</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Token UUID4 único por badge — índice unique en badges.token en MongoDB</span><span class="ci-ev">db.py:66</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">QR generado en base64 vía qrcode[pil] y guardado en el documento del badge</span><span class="ci-ev">admin.py:444</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">URL del QR usa APP_BASE_URL (env var) — configurable sin tocar código</span><span class="ci-ev">admin.py:441</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Regenerar QR (POST /admin/badges/&lt;id&gt;/regenerate-qr) invalida el token anterior</span><span class="ci-ev">admin.py:500+</span></div>
+    </div>
+
+    <div class="clg">
+      <div class="clgl">4 — Redención</div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Duplicados bloqueados atómicamente: update_one($setOnInsert, upsert=True) + DuplicateKeyError</span><span class="ci-ev">redeem.py:59 ✅ fix v2</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">user_id tomado del JWT — el cliente no puede proponer su propio ID</span><span class="ci-ev">redeem.py:30</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">XP otorgado con $inc atómico — nunca read-modify-write</span><span class="ci-ev">services/xp.py</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Logros evaluados post-scan con barrera DuplicateKeyError para concurrent unlocks</span><span class="ci-ev">services/achievements.py:153</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Rate limit 10 redeems/min por usuario</span><span class="ci-ev">security/limiter.py</span></div>
+    </div>
+
+    <div class="clg">
+      <div class="clgl">5 — Perfil y Logros</div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">GET /auth/profile devuelve badges, progreso y XP agrupados por evento</span><span class="ci-ev">auth.py:182</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">9 logros definidos en backend + endpoint GET /auth/achievements/definitions sin duplicación</span><span class="ci-ev">auth.py:✅ fix v2</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Frontend carga definiciones dinámicamente desde el backend con fallback local (loadAchievementDefs)</span><span class="ci-ev">api.js ✅ fix v2</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Privacidad respetada en los 4 leaderboards — usuarios con show_in_leaderboard:false excluidos</span><span class="ci-ev">events.py ✅ fix v2</span></div>
+    </div>
+
+    <div class="clg">
+      <div class="clgl">6 — Frontend</div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Pantallas existentes: login, register, profile, scan, redeem, event-detail, join, leaderboard</span><span class="ci-ev">raíz del repo</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Admin completo: admin-event.html, admin-event-create.html, admin-event-detail.html</span><span class="ci-ev">raíz del repo</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Diseño responsive — mobile-first, flex/grid adaptativos, iconos PNG (sin emojis)</span><span class="ci-ev">css/styles.css</span></div>
+      <div class="ci fail"><span class="ci-icon"></span><span class="ci-text">XSS en sistema de toasts: el.innerHTML = msg sin escape — cualquier mensaje con input del usuario ejecuta JS</span><span class="ci-ev">utils.js:395</span></div>
+      <div class="ci partial"><span class="ci-icon"></span><span class="ci-text">URLs de avatar renderizadas sin validar origen — podría cargar recursos maliciosos si URL comprometida</span><span class="ci-ev">utils.js:545</span></div>
+    </div>
+
+    <div class="clg">
+      <div class="clgl">7 — Producción</div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">render.yaml correcto: gunicorn, FLASK_ENV=production, JWT_SECRET con generateValue:true</span><span class="ci-ev">render.yaml</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">vercel.json con rewrite /redeem/:event/:token → /redeem.html</span><span class="ci-ev">vercel.json</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">APP_BASE_URL usada para QR — no hay URLs hardcodeadas en la generación de badges</span><span class="ci-ev">admin.py:441</span></div>
+      <div class="ci partial"><span class="ci-icon"></span><span class="ci-text">MONGO_URI tiene fallback a mongodb://localhost:27017 en db.py — si env var falla, se conecta a localhost sin error visible</span><span class="ci-ev">db.py:31</span></div>
+      <div class="ci partial"><span class="ci-icon"></span><span class="ci-text">CORS acepta cualquier *.vercel.app — debería restringirse al deployment específico del proyecto</span><span class="ci-ev">app.py:46</span></div>
+      <div class="ci partial"><span class="ci-icon"></span><span class="ci-text">JWT_SECRET aún tiene fallback "dev_secret_cambia_esto" — si env var falla, tokens forjables</span><span class="ci-ev">app.py:33</span></div>
+    </div>
+
+    <div class="clg">
+      <div class="clgl">8 — Workspaces y Multi-tenancy</div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">god_admin detectado por global_role desde users collection — no confundible con workspace role</span><span class="ci-ev">workspaces.py</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Protección de god_admin en renderMembers: frontend muestra "Protegido" basado en global_role</span><span class="ci-ev">workspace-edit.html</span></div>
+      <div class="ci partial"><span class="ci-icon"></span><span class="ci-text">_ROLE_RANK = {participant:1, admin:2, superadmin:3, god_admin:4} — correcto en mapa pero no usado en todos los checks de rango</span><span class="ci-ev">workspaces.py:268</span></div>
+      <div class="ci ok"><span class="ci-icon"></span><span class="ci-text">Rank comparison previene auto-promoción: caller_rank > target_rank && new_role_rank < caller_rank</span><span class="ci-ev">workspaces.py:289</span></div>
+    </div>
+  </div>
+</section>
+
+<hr class="div"/>
+
+<!-- SEGURIDAD -->
+<section class="section">
+  <div class="sech"><h2 class="sect">Grid de Seguridad</h2><span class="secb">Estado actual</span></div>
+  <div class="sgrid">
+    <div class="sc2 ok-c"><div class="sc2-l">Race condition — redención</div><div class="sc2-v">✅ Solucionado. upsert atómico + DuplicateKeyError + índice único.</div></div>
+    <div class="sc2 ok-c"><div class="sc2-l">Reset password token</div><div class="sc2-v">✅ Solucionado. Token ya no se devuelve en JSON. Email vía Resend.</div></div>
+    <div class="sc2 ok-c"><div class="sc2-l">Passwords</div><div class="sc2-v">bcrypt con salt. Sin almacenamiento en texto plano.</div></div>
+    <div class="sc2 ok-c"><div class="sc2-l">XP manipulation</div><div class="sc2-v">$inc atómico + log append-only. Imposible desde el cliente.</div></div>
+    <div class="sc2 ok-c"><div class="sc2-l">Inyección NoSQL</div><div class="sc2-v">Parámetros pasan por ObjectId() o sanitize(). Sin queries dinámicos.</div></div>
+    <div class="sc2 ok-c"><div class="sc2-l">Rate limiting</div><div class="sc2-v">flask-limiter con Redis en producción. Auth, redención y avatar con límites distintos.</div></div>
+    <div class="sc2 ok-c"><div class="sc2-l">Firebase keys</div><div class="sc2-v">Comentadas como públicas por diseño. Restricción por HTTP referrer documentada.</div></div>
+    <div class="sc2 ok-c"><div class="sc2-l">Privacidad en leaderboards</div><div class="sc2-v">✅ Solucionado. Los 4 endpoints filtran show_in_leaderboard.</div></div>
+    <div class="sc2 ba-c"><div class="sc2-l">XSS en toasts</div><div class="sc2-v">CRÍTICO. el.innerHTML = msg sin escape en utils.js:395.</div></div>
+    <div class="sc2 ba-c"><div class="sc2-l">JWT secret fallback</div><div class="sc2-v">"dev_secret_cambia_esto" hardcodeado en app.py:33 como default.</div></div>
+    <div class="sc2 wa-c"><div class="sc2-l">MONGO_URI fallback</div><div class="sc2-v">Fallback a localhost si env var falla — conexión silenciosa a BD vacía.</div></div>
+    <div class="sc2 wa-c"><div class="sc2-l">CORS amplio</div><div class="sc2-v">Regex acepta cualquier *.vercel.app — debería ser el dominio exacto.</div></div>
+  </div>
+</section>
+
+<hr class="div"/>
+
+<!-- ERRORES CRÍTICOS -->
+<section class="section">
+  <div class="sech"><h2 class="sect">Errores por Severidad</h2><span class="secb">Ordenados por impacto</span></div>
+  <div class="el">
+
+    <div class="ec crit">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev crit">🔴 Crítico</span><span class="et">XSS en sistema de toasts</span></div>
+        <p class="eb"><code>js/utils.js:395</code> — La función <code>toast()</code> hace <code>el.innerHTML = msg</code> sin escapar el contenido. Cualquier string con HTML llegado desde el servidor (mensajes de error con input del usuario, nombre de badge, etc.) puede ejecutar JavaScript en el navegador del victim.</p>
+        <div class="ef"><strong>Fix (1 línea):</strong> Cambiar <code>el.innerHTML = msg</code> por <code>el.textContent = msg</code>. Si el toast necesita íconos, construirlos con createElement() en vez de HTML raw. Verificar también cualquier otro <code>innerHTML</code> que reciba strings del servidor sin pasar por <code>U.esc()</code>.</div>
+      </div>
+    </div>
+
+    <div class="ec crit">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev crit">🔴 Crítico</span><span class="et">JWT Secret con fallback débil hardcodeado</span></div>
+        <p class="eb"><code>backend/app.py:33</code> — <code>os.getenv("JWT_SECRET", "dev_secret_cambia_esto")</code>. Si el env var no se carga en Render (fallo de deploy o rollback), cualquiera puede forjar tokens JWT con rol god_admin. Este es el bypass total de autenticación. A pesar de que <code>generateValue:true</code> está en render.yaml, el fallback nunca debería existir en producción.</p>
+        <div class="ef"><strong>Fix (1 línea):</strong> Cambiar a <code>os.getenv("JWT_SECRET")</code> sin default. Si la variable no existe, Flask-JWT lanzará error en el arranque — comportamiento correcto que evita deployments con secret vacío.</div>
+      </div>
+    </div>
+
+    <div class="ec high">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev high">🟠 Alto</span><span class="et">MONGO_URI con fallback a localhost en producción</span></div>
+        <p class="eb"><code>backend/db.py:31</code> — <code>os.getenv("MONGO_URI", "mongodb://localhost:27017")</code>. Si la variable no se carga en Render, el backend arranca conectado a una MongoDB que no existe, sin retornar error visible. Las operaciones fallan silenciosamente o escriben en localhost vacío.</p>
+        <div class="ef"><strong>Fix:</strong> Quitar el default. Agregar validación explícita: <code>mongo_uri = os.getenv("MONGO_URI"); assert mongo_uri, "MONGO_URI requerida"</code>. El deploy falla ruidosamente si falta, que es el comportamiento correcto.</div>
+      </div>
+    </div>
+
+    <div class="ec high">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev high">🟠 Alto</span><span class="et">Bug en _ROLE_RANK — 'admin' rankeado en 0</span></div>
+        <p class="eb"><code>backend/routes/workspaces.py:268</code> — El dict <code>_ROLE_RANK = {"participant": 1, "superadmin": 3, "god_admin": 4}</code> no incluye <code>"admin"</code>. El método <code>.get("admin", 0)</code> retorna 0, lo que posiciona a los admins por debajo de los participantes en las comparaciones de rango. Un admin podría no poder gestionar participantes dependiendo del flujo exacto.</p>
+        <div class="ef"><strong>Fix (1 carácter):</strong> Agregar <code>"admin": 2</code> al dict. Jerarquía completa: participant:1, admin:2, superadmin:3, god_admin:4.</div>
+      </div>
+    </div>
+
+    <div class="ec high">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev high">🟠 Alto</span><span class="et">CORS demasiado amplio — acepta cualquier *.vercel.app</span></div>
+        <p class="eb"><code>backend/app.py:46</code> — La regex <code>r"^https://[a-zA-Z0-9][a-zA-Z0-9\-]*\.vercel\.app$"</code> acepta cualquier subdominio de Vercel. Cualquier desarrollador que deploya a Vercel puede enviar requests autenticadas a la API de Lyfter si tiene un token válido.</p>
+        <div class="ef"><strong>Fix:</strong> Reemplazar el patrón dinámico por el dominio exacto del frontend: <code>"https://lyfters-badge-app.vercel.app"</code>. Agregar también el dominio de GitHub Pages. Mantener la lista explícita, no el wildcard.</div>
+      </div>
+    </div>
+
+    <div class="ec med">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev med">🟡 Medio</span><span class="et">Rate limiting en memoria — se pierde al reiniciar el servidor</span></div>
+        <p class="eb"><code>backend/routes/auth.py:44</code> — <code>_login_attempts = defaultdict(list)</code> es un dict en memoria del proceso Python. Cada restart de Gunicorn en Render (que ocurre en cada deploy y regularmente por timeout) resetea todos los contadores de intentos fallidos. El rate limit de login no es persistente.</p>
+        <div class="ef"><strong>Nota:</strong> El rate limiting de flask-limiter usa Redis en producción (configurado en render.yaml), pero este dict adicional en auth.py no. Es redundante con flask-limiter y puede eliminarse si flask-limiter está correctamente configurado con Redis.</div>
+      </div>
+    </div>
+
+    <div class="ec med">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev med">🟡 Medio</span><span class="et">Avatar URLs renderizadas sin validar origen</span></div>
+        <p class="eb"><code>js/utils.js:545</code> — Las URLs de avatar (que pueden provenir de Google OAuth o ser subidas por el usuario) se renderizan directamente en <code>&lt;img src="..."&gt;</code> sin validar que el origen sea de confianza. Si una URL comprometida apuntara a un recurso externo, podría filtrar el token de sesión via el header Referer.</p>
+        <div class="ef"><strong>Fix recomendado:</strong> Validar que las avatarUrl sean data: URIs (base64) o provengan de dominios en whitelist (googleusercontent.com, lh3.googleusercontent.com). Reemplazar URLs que no pasen validación por el avatar de iniciales por defecto.</div>
+      </div>
+    </div>
+
+    <div class="ec med">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev med">🟡 Medio</span><span class="et">Filtro de privacidad duplicado en múltiples endpoints</span></div>
+        <p class="eb">El mismo objeto <code>{"$or": [{"privacy.show_in_leaderboard": {"$ne": False}}, {"privacy": {"$exists": False}}]}</code> aparece en events.py en tres funciones distintas. Si se agrega un campo de privacidad nuevo, hay que actualizar tres lugares.</p>
+        <div class="ef"><strong>Fix:</strong> Extraer a constante en events.py: <code>_PRIVACY_VISIBLE = {"$or": [...]}</code> y referenciarla en las tres funciones. Una línea de cambio en vez de tres.</div>
+      </div>
+    </div>
+
+    <div class="ec low">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev fixed">✅ Solucionado en v2</span><span class="et">Race condition en redención de badges</span></div>
+        <p class="eb">El viejo find_one + insert_one fue reemplazado por update_one($setOnInsert, upsert=True) con DuplicateKeyError como barrera secundaria. El índice único (user_id, badge_id) en MongoDB garantiza atomicidad incluso bajo requests simultáneas.</p>
+        <div class="ef"><strong>Estado:</strong> Cerrado. redeem.py:59 usa la versión atómica.</div>
+      </div>
+    </div>
+
+    <div class="ec low">
+      <div class="ec-acc"></div>
+      <div class="ec-in">
+        <div class="ec-hd"><span class="sev fixed">✅ Solucionado en v2</span><span class="et">Reset password token en respuesta JSON</span></div>
+        <p class="eb">El endpoint /auth/forgot-password ya no incluye reset_link en la respuesta. Devuelve solo {ok: true}. El email con el link se envía server-side vía Resend.</p>
+        <div class="ef"><strong>Estado:</strong> Cerrado. auth.py:415.</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="div"/>
+
+<!-- VEREDICTO -->
+<section class="section">
+  <div class="vb">
+    <div class="vq">Veredicto final — "¿Si la demo fuera hoy, aprobaría el proyecto?"</div>
+    <div class="va">
+      <span class="yes">Sí, aprobaría</span> — <span class="but">con 2 fixes de una línea bloqueantes.</span>
+    </div>
+    <div class="vbody">
+      <p>
+        La segunda revisión confirma que el proyecto avanzó: los 6 issues de la v1 fueron cerrados correctamente. La redención es ahora completamente atómica, los leaderboards respetan la privacidad, y los logros ya no tienen definición duplicada. Eso requirió trabajo real y se nota.
+      </p>
+      <p>
+        El puntaje sube de 76 a <strong>78/100</strong>, pero la revisión más exhaustiva descubrió dos hallazgos nuevos que son serios: el XSS en el sistema de toasts (<code>utils.js:395</code>) y el bug en <code>_ROLE_RANK</code> donde 'admin' rankea en 0. Ambos son fixes de una línea — pero el XSS en toasts es lo que un evaluador técnico nota en los primeros 10 minutos de revisar el código frontend.
+      </p>
+      <p>
+        <strong>Si tenés 30 minutos antes de la demo:</strong> Fija primero el XSS en toast (1 línea: <code>innerHTML → textContent</code>) y el <code>_ROLE_RANK</code> (agregar <code>"admin": 2</code>). Con eso el proyecto pasa de 78 a ~84 — zona cómoda. El JWT secret y MONGO_URI sin default son mejoras críticas de producción real pero no son visibles en una demo.
+      </p>
+      <p>
+        El núcleo del sistema es sólido: multi-tenancy, XP atómico, OAuth verificado server-side, rate limiting real, QR funcional. La arquitectura es correcta para un proyecto de esta escala. Los issues pendientes son configuración y edge cases de seguridad — no diseño defectuoso.
+      </p>
+    </div>
+    <div class="vpills">
+      <span class="vp s">Redención atómica ✅</span>
+      <span class="vp s">XP inmanipulable</span>
+      <span class="vp s">Auth Google verificada</span>
+      <span class="vp s">Privacidad en leaderboards ✅</span>
+      <span class="vp s">Logros sin duplicación ✅</span>
+      <span class="vp s">Responsive + UX clara</span>
+      <span class="vp w">XSS en toasts (fix 1 línea)</span>
+      <span class="vp w">JWT secret fallback</span>
+      <span class="vp w">_ROLE_RANK bug (fix 1 línea)</span>
+    </div>
+  </div>
+</section>
+
+<footer class="rf">
+  <span class="rf-l">Lyfter Badge App — Auditoría Técnica Oficial v2 — Junio 2026</span>
+  <span class="rf-r">76 → 78 / 100</span>
+</footer>
+
+</div>
+</body>
+</html>
