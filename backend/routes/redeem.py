@@ -92,6 +92,7 @@ def redeem_badge(event_id, token):
         "status":     "ok",
         "badge": {
             "icon":        badge.get("icon", "🏅"),
+            "icon_url":    badge.get("icon_url", ""),
             "nombre":      badge.get("name", ""),
             "descripcion": badge.get("description", ""),
         },
