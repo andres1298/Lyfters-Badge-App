@@ -20,7 +20,7 @@ def get_xp():
     uid = get_jwt_identity()
     user = users().find_one({"_id": ObjectId(uid)}, {"xp_total": 1})
     if not user:
-        return jsonify(error="Usuario no encontrado"), 404
+        return jsonify(error="Usuario no encontrado", error_code="user_not_found"), 404
     xp_total = int(user.get("xp_total", 0))
     # level_progress ya devuelve level, level_name, xp_total, xp_next_level,
     # xp_for_next y progress_pct.
