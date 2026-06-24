@@ -68,9 +68,9 @@
   var ACHIEVEMENT_DEFS = [
     { slug: 'first_scan',           name: 'Primer paso',    description: 'Escaneaste tu primer badge.',               hint: 'Escaneá tu primer badge.',          icon: '👣', img: 'assets/icons/achievements/primer-paso.png',    rarity: 'common',    xp_reward: 15 },
     { slug: 'five_badges',          name: 'Coleccionista',  description: 'Acumulaste 5 badges en total.',             hint: 'Seguí coleccionando badges.',       icon: '🎖️', img: 'assets/icons/achievements/coleccionista.png',  rarity: 'common',    xp_reward: 15 },
-    { slug: 'twenty_five_badges',  name: 'Gran Coleccionista', description: 'Acumulaste 25 badges en total.',        hint: 'Seguí coleccionando badges.',       icon: '🏆', img: 'assets/icons/achievements/coleccionista.png',  rarity: 'epic',      xp_reward: 50 },
+    { slug: 'twenty_five_badges',  name: 'Gran Coleccionista', description: 'Acumulaste 25 badges en total.',        hint: 'Seguí coleccionando badges.',              img: 'assets/icons/achievements/coleccionista.png',  rarity: 'epic',      xp_reward: 50 },
     { slug: 'vertigo',              name: 'Vértigo',        description: 'Escanea 5 badges en menos de una hora.',    hint: 'Coleccioná badges rápidamente.',    icon: '🔥', img: 'assets/icons/achievements/vertigo.png',        rarity: 'rare',      xp_reward: 30 },
-    { slug: 'first_event_complete', name: 'Completista',    description: 'Completaste todos los badges de un evento.', hint: 'Completá todos los badges de un evento.', icon: '<img src="assets/icons/ui/icono-reclamado.png" style="width:16px;height:16px;object-fit:contain;">',                                           rarity: 'rare',      xp_reward: 30 },
+    { slug: 'first_event_complete', name: 'Completista',    description: 'Completaste todos los badges de un evento.', hint: 'Completá todos los badges de un evento.',                                                                                                          img: 'assets/icons/achievements/Completista.png',    rarity: 'rare',      xp_reward: 30 },
     { slug: 'three_completions',    name: 'Perfeccionista', description: 'Completaste 3 eventos distintos.',          hint: 'Completá varios eventos.',          icon: '💯', img: 'assets/icons/achievements/perfeccionista.png', rarity: 'epic',      xp_reward: 75 },
     { slug: 'three_events',         name: 'Viajero',        description: 'Participaste en 3 eventos distintos.',      hint: 'Participá en varios eventos.',      icon: '🧳', img: 'assets/icons/achievements/viajero.png',        rarity: 'rare',      xp_reward: 30 },
     { slug: 'five_events',          name: 'Veterano',       description: 'Participaste en 5 eventos distintos.',      hint: 'Participá en muchos eventos.',      icon: '🎓', img: 'assets/icons/achievements/veterano.png',       rarity: 'epic',      xp_reward: 75 },
@@ -870,7 +870,7 @@
       var IMG_BY_SLUG = {
         'first_scan':           'assets/icons/achievements/primer-paso.png',
         'five_badges':          'assets/icons/achievements/coleccionista.png',
-        'twenty_five_badges':   'assets/icons/achievements/vertigo.png',
+        'twenty_five_badges':   'assets/icons/achievements/coleccionista.png',
         'first_event_complete': 'assets/icons/achievements/Completista.png',
         'three_completions':    'assets/icons/achievements/perfeccionista.png',
         'three_events':         'assets/icons/achievements/viajero.png',
