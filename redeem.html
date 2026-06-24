@@ -115,8 +115,15 @@
         if (!isDup) {
           var duck = document.getElementById('duck-celebration');
           if (duck) {
+            // Ocultar el contenido principal mientras dura la animación
+            var mainContent = document.getElementById('app');
+            if (mainContent) mainContent.style.visibility = 'hidden';
             duck.style.display = 'flex';
-            setTimeout(function() { duck.style.display = 'none'; }, 2800);
+            setTimeout(function() {
+              duck.style.display = 'none';
+              // Mostrar el contenido después de la animación
+              if (mainContent) mainContent.style.visibility = 'visible';
+            }, 2800);
           }
         }
 
