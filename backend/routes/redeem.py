@@ -70,6 +70,7 @@ def redeem_badge(event_id, token):
                 "badge_id":    badge_oid,
                 "event_id":    oid_event,
                 "redeemed_at": datetime.now(timezone.utc),
+                "scanned_at":  datetime.now(timezone.utc),
             }},
             upsert=True
         )
