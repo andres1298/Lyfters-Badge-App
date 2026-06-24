@@ -264,7 +264,6 @@ def delete_event(event_id):
 
     badge_oids = [b["_id"] for b in badges().find({"event_id": oid}, {"_id": 1})]
     scans().delete_many({"badge_id": {"$in": badge_oids}})
-    scans().delete_many({"event_id": oid})
     badges().delete_many({"event_id": oid})
     events().delete_one({"_id": oid})
     return jsonify(mensaje="Evento eliminado"), 200
