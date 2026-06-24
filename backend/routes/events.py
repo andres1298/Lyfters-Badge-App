@@ -40,13 +40,8 @@ def _get_ws_id_optional():
 @events_bp.route("/", methods=["GET"])
 @events_bp.route("",  methods=["GET"])
 def list_events():
-    now = datetime.utcnow()
-    visible_statuses = ("upcoming", "open", "ongoing")
-    ws_id = _get_ws_id_optional()
-    query = {"active": True, "end_date": {"$gte": now}}
-    if ws_id:
-        query["workspace_id"] = ws_id
-    docs = list(events().find(query))
+    visible_statuses = ("upcoming", "open", "ongoing", "finished")
+    docs = list(events().find({"active": True}))
     visible = [e for e in docs if compute_event_status(e) in visible_statuses]
     ws_ids = {e["workspace_id"] for e in visible if e.get("workspace_id")}
     ws_names = {

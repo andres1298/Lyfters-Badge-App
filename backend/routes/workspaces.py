@@ -262,6 +262,31 @@ def delete_workspace(ws_id):
     return jsonify(message="Workspace eliminado correctamente"), 200
 
 
+# ── POST /workspaces/cleanup-orphans — solo god_admin ──────────
+@ws_bp.route("/cleanup-orphans", methods=["POST"])
+@jwt_required()
+def cleanup_orphans():
+    if get_jwt().get("role") != "god_admin":
+        return jsonify(error="Solo god_admin"), 403
+
+    valid_ws_ids = [ws["_id"] for ws in workspaces().find({}, {"_id": 1})]
+
+    orphan_events = list(events().find({"workspace_id": {"$nin": valid_ws_ids}}, {"_id": 1}))
+    orphan_event_ids = [e["_id"] for e in orphan_events]
+
+    orphan_badges = list(badges().find({"event_id": {"$in": orphan_event_ids}}, {"_id": 1}))
+    orphan_badge_ids = [b["_id"] for b in orphan_badges]
+
+    scans().delete_many({"badge_id": {"$in": orphan_badge_ids}})
+    badges().delete_many({"event_id": {"$in": orphan_event_ids}})
+    events().delete_many({"workspace_id": {"$nin": valid_ws_ids}})
+
+    return jsonify(
+        orphan_events=len(orphan_event_ids),
+        orphan_badges=len(orphan_badge_ids)
+    ), 200
+
+
 # ── GET /workspaces/<ws_id>/members ───────────────────────────
 @ws_bp.route("/<ws_id>/members", methods=["GET"])
 @jwt_required()

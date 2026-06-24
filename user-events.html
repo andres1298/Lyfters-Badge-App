@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  </style>
 </head>
 <body>
   <div id="loading-screen">
@@ -37,7 +40,7 @@
       if (!user) { window.location.replace('login.html?next=' + encodeURIComponent(window.location.pathname + window.location.search)); return; }
       if (['admin','superadmin','god_admin'].indexOf(user.role) !== -1) { window.location.replace('workspace-select.html'); return; }
 
-      // Banner de bienvenida si viene de escanear un evento
+      // Banner de bienvenida al unirse a un evento desde QR
       (function() {
         var joined = sessionStorage.getItem('lyfter_joined_event');
         if (!joined) return;
@@ -46,8 +49,14 @@
           var ev = JSON.parse(joined);
           if (Date.now() - ev.ts < 10000) {
             var banner = document.createElement('div');
-            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(90deg,#d897e7,#e68a8d);padding:16px;text-align:center;font-family:Poppins,sans-serif;font-size:15px;font-weight:700;color:#fff;animation:slideDown 0.4s ease;';
-            banner.innerHTML = '<img src="assets/icons/ui/icono-celebracion.png" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;margin-right:6px;"> ¡Te uniste a ' + ev.name + ' exitosamente!';
+            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(90deg,#d897e7,#e68a8d);padding:16px;display:flex;align-items:center;justify-content:center;gap:6px;font-family:Poppins,sans-serif;font-size:15px;font-weight:700;color:#fff;animation:slideDown 0.4s ease;';
+            var _bImg = document.createElement('img');
+            _bImg.src = 'assets/icons/ui/icono-celebracion.png';
+            _bImg.style.cssText = 'width:24px;height:24px;object-fit:contain;flex-shrink:0;';
+            banner.appendChild(_bImg);
+            var _bTxt = document.createElement('span');
+            _bTxt.textContent = '¡Te uniste a ' + (ev.name || 'el evento') + ' exitosamente!';
+            banner.appendChild(_bTxt);
             document.body.appendChild(banner);
             setTimeout(function() {
               banner.style.transition = 'opacity 0.4s';
@@ -66,6 +75,14 @@
         catch(e) { return ''; }
       }
 
+      function haversine(lat1, lng1, lat2, lng2) {
+        var R = 6371000;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLng = (lng2 - lng1) * Math.PI / 180;
+        var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      }
+
       function navHtml() {
         return '<div style="display:flex;gap:4px;margin-bottom:24px;background:#1c1f27;border:1px solid #2f343f;border-radius:12px;padding:4px;">' +
           '<a href="profile.html" style="flex:1;padding:8px 4px;border-radius:8px;text-decoration:none;text-align:center;font-family:Manrope,sans-serif;font-size:12px;font-weight:600;background:transparent;color:#8b93a3;">Explorar</a>' +
@@ -76,18 +93,120 @@
         '</div>';
       }
 
+      function renderActiveCard(ev, detail) {
+        var total = detail.total || 0;
+        var done  = detail.obtained || detail.doneCount || 0;
+        var pct   = total ? Math.round((done / total) * 100) : 0;
+        var photoHtml = ev.photo
+          ? '<div style="height:180px;overflow:hidden;border-radius:16px 16px 0 0;"><img src="' + U.esc(ev.photo) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
+          : '<div style="height:180px;border-radius:16px 16px 0 0;background:linear-gradient(120deg,#d897e7 0%,#e68a8d 60%,#ffcb8a 100%);display:flex;align-items:center;justify-content:center;"><img src="assets/icons/ui/icono-evento.png" style="width:60px;height:60px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.7;"></div>';
+        var badgesHtml = (detail.badges || []).slice(0, 8).map(function(b) {
+          var iconHtml = b.icon_url
+            ? '<img src="' + U.esc(b.icon_url) + '" style="width:32px;height:32px;object-fit:contain;">'
+            : '<img src="assets/icons/ui/icono-badges-creados.png" style="width:32px;height:32px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.6;">';
+          return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;opacity:' + (b.obtained ? '1' : '0.3') + ';">' +
+            iconHtml +
+            (b.obtained ? '<span style="font-size:9px;color:#16a34a;font-weight:700;">✓</span>' : '<span style="font-size:9px;color:#8b93a3;">—</span>') +
+          '</div>';
+        }).join('');
+        return '<div style="background:#1c1f27;border:2px solid rgba(216,151,231,0.4);border-radius:16px;overflow:hidden;margin-bottom:24px;box-shadow:0 0 24px rgba(216,151,231,0.12);">' +
+          photoHtml +
+          '<div style="padding:16px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+              '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(22,163,74,0.2);color:#16a34a;">' +
+                '<span style="width:7px;height:7px;border-radius:50%;background:#16a34a;display:inline-block;animation:pulse 1.5s infinite;"></span>' +
+                'Evento actual' +
+              '</span>' +
+            '</div>' +
+            '<h3 style="font-family:Poppins,sans-serif;font-size:18px;font-weight:700;color:#f4f6f9;margin:0 0 12px;">' + U.esc(ev.name) + '</h3>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+              '<span style="font-family:Manrope,sans-serif;font-size:13px;font-weight:600;color:#f4f6f9;">Tu progreso</span>' +
+              '<span style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#d897e7;">' + pct + '%</span>' +
+            '</div>' +
+            '<div style="width:100%;height:8px;background:#2e323d;border-radius:999px;overflow:hidden;margin-bottom:6px;">' +
+              '<div style="height:8px;border-radius:999px;background:linear-gradient(90deg,#d897e7,#e68a8d);width:' + pct + '%;transition:width .7s;"></div>' +
+            '</div>' +
+            '<p style="font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;margin:0 0 14px;">' + done + ' de ' + total + ' badges obtenidos</p>' +
+            (badgesHtml ? '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">' + badgesHtml + '</div>' : '') +
+            '<a href="scan.html" style="display:block;text-align:center;padding:14px;border-radius:12px;background:linear-gradient(135deg,#d897e7,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;text-decoration:none;">Escanear badge</a>' +
+          '</div>' +
+        '</div>';
+      }
+
+      function renderPastCard(ev, detail) {
+        var total = detail.total || 0;
+        var done  = detail.obtained || detail.doneCount || 0;
+        var pct   = total ? Math.round((done / total) * 100) : 0;
+        var statusColors = { upcoming: '#3b82f6', open: '#16a34a', ongoing: '#6C63FF', finished: '#6b7280', closed: '#d97706', postponed: '#9333ea' };
+        var statusLabels = { upcoming: 'Próximo', open: 'Abierto', ongoing: 'En curso', finished: 'Finalizado', closed: 'Cerrado', postponed: 'Pospuesto' };
+        var completeBadge = detail.complete
+          ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(22,163,74,0.2);color:#16a34a;">✓ Completado</span>'
+          : '';
+        var photoTop = ev.photo
+          ? '<div style="height:80px;overflow:hidden;border-radius:12px 12px 0 0;"><img src="' + U.esc(ev.photo) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
+          : '';
+        return '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:12px;overflow:hidden;margin-bottom:12px;">' +
+          photoTop +
+          '<div style="padding:12px;">' +
+            '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">' +
+              '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;color:white;background:' + (statusColors[ev.status] || '#6C63FF') + ';">' + (statusLabels[ev.status] || ev.status || '') + '</span>' +
+              completeBadge +
+            '</div>' +
+            '<h4 style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;margin:0 0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + U.esc(ev.name) + '</h4>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+              '<span style="font-family:Manrope,sans-serif;font-size:11px;color:#8b93a3;">' + done + ' / ' + total + ' badges</span>' +
+              '<span style="font-family:Poppins,sans-serif;font-size:11px;font-weight:700;color:#d897e7;">' + pct + '%</span>' +
+            '</div>' +
+            '<div style="width:100%;height:5px;background:#2e323d;border-radius:999px;overflow:hidden;">' +
+              '<div style="height:5px;border-radius:999px;background:linear-gradient(90deg,#d897e7,#e68a8d);width:' + pct + '%;"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }
+
       async function init() {
         try {
-          var profile = await API.getProfile();
-          var events  = await API.getJoinedEvents();
+          var profile    = await API.getProfile();
+          var myEvents   = await API.getJoinedEvents();
+          var allDetails = await Promise.all(myEvents.map(function(ev) {
+            return API.getEventDetail(ev.id).catch(function() { return { total: 0, obtained: 0, badges: [], complete: false }; });
+          }));
 
           var avatarHtml = profile.avatar
             ? '<img src="' + U.esc(profile.avatar) + '" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(216,151,231,0.5);">'
             : '<img src="assets/icons/ui/icono-perfil.png" style="width:40px;height:40px;border-radius:50%;object-fit:contain;background:#2e323d;padding:6px;">';
 
-          var detailsHtml = '';
-          if (!events.length) {
-            detailsHtml =
+          // Geolocalización para detectar evento cercano
+          var userLat = null, userLng = null;
+          if (navigator.geolocation) {
+            try {
+              var pos = await new Promise(function(resolve, reject) {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, maximumAge: 60000 });
+              });
+              userLat = pos.coords.latitude;
+              userLng = pos.coords.longitude;
+            } catch(e) {}
+          }
+
+          // Determinar evento activo: primero por cercanía (<1km), luego por status
+          var activeEv = null;
+          if (userLat !== null) {
+            activeEv = myEvents.find(function(ev) {
+              if (!ev.lat || !ev.lng) return false;
+              return haversine(userLat, userLng, ev.lat, ev.lng) < 1000;
+            });
+          }
+          if (!activeEv) {
+            activeEv = myEvents.find(function(ev) {
+              return ev.status === 'ongoing' || ev.status === 'open';
+            });
+          }
+
+          var activeSectionHtml = '';
+          var pastSectionHtml   = '';
+
+          if (!myEvents.length) {
+            pastSectionHtml =
               '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:16px;padding:40px 20px;text-align:center;">' +
                 '<img src="assets/icons/ui/icono-evento.png" style="width:48px;height:48px;object-fit:contain;opacity:0.3;margin-bottom:12px;">' +
                 '<p style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0 0 8px;">Aún no te has unido a ningún evento</p>' +
@@ -95,70 +214,33 @@
                 '<a href="profile.html" style="display:inline-block;padding:12px 24px;border-radius:12px;background:linear-gradient(135deg,#d897e7,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;text-decoration:none;">Explorar eventos</a>' +
               '</div>';
           } else {
-            var cards = await Promise.all(events.map(async function(ev) {
-              var detail = await API.getEventDetail(ev.id).catch(function() { return { total: 0, obtained: 0, badges: [], complete: false }; });
-              var total = detail.total || 0;
-              var done  = detail.obtained || detail.doneCount || 0;
-              var pct   = total ? Math.round((done / total) * 100) : 0;
-
-              var statusColors = { upcoming: '#3b82f6', open: '#16a34a', ongoing: '#6C63FF', closed: '#d97706', postponed: '#9333ea' };
-              var statusLabels = { upcoming: 'Próximo', open: 'Abierto', ongoing: 'En curso', closed: 'Registro cerrado', postponed: 'Pospuesto' };
-              var statusColor = statusColors[ev.status] || '#6C63FF';
-              var statusLabel = statusLabels[ev.status] || (ev.status || '');
-
-              var badgesHtml = (detail.badges || []).slice(0, 6).map(function(b) {
-                var iconHtml = b.icon_url
-                  ? '<img src="' + U.esc(b.icon_url) + '" style="width:28px;height:28px;object-fit:contain;">'
-                  : '<img src="assets/icons/ui/icono-badges-creados.png" style="width:28px;height:28px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.6;">';
-                return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;opacity:' + (b.obtained ? '1' : '0.35') + ';">' +
-                  iconHtml +
-                  (b.obtained ? '<span style="font-size:9px;color:#16a34a;font-weight:700;">✓</span>' : '<span style="font-size:9px;color:#8b93a3;">-</span>') +
-                '</div>';
+            if (activeEv) {
+              var activeIdx = myEvents.indexOf(activeEv);
+              activeSectionHtml =
+                '<p style="font-family:Poppins,sans-serif;font-size:12px;font-weight:700;color:#d897e7;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px;">Evento actual</p>' +
+                renderActiveCard(activeEv, allDetails[activeIdx]);
+            }
+            var pastEvents = myEvents.filter(function(ev) { return ev !== activeEv; });
+            if (pastEvents.length) {
+              var pastCards = pastEvents.map(function(ev) {
+                return renderPastCard(ev, allDetails[myEvents.indexOf(ev)]);
               }).join('');
-
-              var completeBadge = detail.complete
-                ? '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(22,163,74,0.2);color:#16a34a;">Completado</span>'
-                : '';
-
-              var photoTop = ev.photo
-                ? '<div style="height:120px;overflow:hidden;border-radius:16px 16px 0 0;"><img src="' + U.esc(ev.photo) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
-                : '<div style="height:120px;border-radius:16px 16px 0 0;background:linear-gradient(120deg,#d897e7,#e68a8d,#ffcb8a);display:flex;align-items:center;justify-content:center;"><img src="assets/icons/ui/icono-evento.png" style="width:40px;height:40px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.7;"></div>';
-
-              return '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:16px;overflow:hidden;margin-bottom:16px;">' +
-                photoTop +
-                '<div style="padding:16px;">' +
-                  '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
-                    '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;color:white;background:' + statusColor + ';">' + statusLabel + '</span>' +
-                    completeBadge +
-                  '</div>' +
-                  '<h3 style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0 0 4px;">' + U.esc(ev.name) + '</h3>' +
-                  '<p style="font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;margin:0 0 14px;display:flex;align-items:center;gap:6px;"><img src="assets/icons/ui/icono-calendario-blanco.png" style="width:13px;height:13px;object-fit:contain;opacity:0.6;"> ' + fmtDate(ev.start) + (ev.end ? ' — ' + fmtDate(ev.end) : '') + '</p>' +
-                  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                    '<span style="font-family:Manrope,sans-serif;font-size:13px;font-weight:600;color:#f4f6f9;">Tu progreso</span>' +
-                    '<span style="font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#d897e7;">' + pct + '%</span>' +
-                  '</div>' +
-                  '<div style="width:100%;height:8px;background:#2e323d;border-radius:999px;overflow:hidden;margin-bottom:6px;">' +
-                    '<div style="height:8px;border-radius:999px;background:linear-gradient(90deg,#d897e7,#e68a8d);width:' + pct + '%;transition:width .7s;"></div>' +
-                  '</div>' +
-                  '<p style="font-family:Manrope,sans-serif;font-size:11px;color:#8b93a3;margin:0 0 14px;">' + done + ' de ' + total + ' badges obtenidos</p>' +
-                  (badgesHtml ? '<div style="display:flex;gap:12px;flex-wrap:wrap;">' + badgesHtml + '</div>' : '') +
-                '</div>' +
-              '</div>';
-            }));
-            detailsHtml = cards.join('');
+              pastSectionHtml =
+                '<p style="font-family:Poppins,sans-serif;font-size:12px;font-weight:700;color:#8b93a3;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px;">Mis eventos</p>' +
+                pastCards;
+            }
           }
 
-          var inner =
+          app.innerHTML =
             '<div style="min-height:100vh;padding:20px 16px 40px;">' +
               '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
                 '<h2 style="font-family:Poppins,sans-serif;font-size:22px;font-weight:700;color:#f4f6f9;margin:0;">Eventos</h2>' +
                 '<button id="profile-menu-btn" style="background:transparent;border:none;cursor:pointer;padding:0;">' + avatarHtml + '</button>' +
               '</div>' +
               navHtml() +
-              detailsHtml +
+              activeSectionHtml +
+              pastSectionHtml +
             '</div>';
-
-          app.innerHTML = inner;
 
           document.getElementById('profile-menu-btn').addEventListener('click', async function() {
             try {

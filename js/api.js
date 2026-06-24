@@ -637,6 +637,8 @@
       xp_first_scan:       e.xp_first_scan,
       xp_rare_bonus:       e.xp_rare_bonus,
       xp_completion_bonus: e.xp_completion_bonus,
+      lat: e.lat != null ? e.lat : null,
+      lng: e.lng != null ? e.lng : null,
       workspace_name: e.workspace_name || null,
     };
   }
