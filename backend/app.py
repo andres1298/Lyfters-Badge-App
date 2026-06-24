@@ -44,7 +44,10 @@ _env_origins = [
         "http://localhost:5500,http://localhost:3000,http://127.0.0.1:5500"
     ).split(",") if o.strip()
 ]
-_cors_origins = _env_origins + ["https://lyfters-badge-app.vercel.app"]
+_cors_origins = _env_origins + [
+    "https://lyfters-badge-app.vercel.app",
+    "https://lyfters-badge-psgwxf1jw-lyfter-s-projects2.vercel.app",
+]
 CORS(app, origins=_cors_origins, supports_credentials=True,
      allow_headers=["Content-Type", "Authorization", "X-Workspace-Id"],
      expose_headers=["Authorization"],
