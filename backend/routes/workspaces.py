@@ -235,13 +235,31 @@ def update_workspace(ws_id):
 @ws_bp.route("/<ws_id>", methods=["DELETE"])
 @jwt_required()
 def delete_workspace(ws_id):
-    claims = get_jwt()
-    if claims.get("role") != "god_admin":
+    if get_jwt().get("role") != "god_admin":
         return jsonify(error="Solo god_admin puede eliminar workspaces"), 403
-    oid = ObjectId(ws_id)
-    workspaces().delete_one({"_id": oid})
+
+    try:
+        oid = ObjectId(ws_id)
+    except Exception:
+        return jsonify(error="ID inválido"), 400
+
+    event_ids = [e["_id"] for e in events().find({"workspace_id": oid}, {"_id": 1})]
+    badge_ids = [b["_id"] for b in badges().find({"event_id": {"$in": event_ids}}, {"_id": 1})]
+
+    if badge_ids:
+        scans().delete_many({"badge_id": {"$in": badge_ids}})
+    if event_ids:
+        badges().delete_many({"event_id": {"$in": event_ids}})
+
+    events().delete_many({"workspace_id": oid})
     workspace_members().delete_many({"workspace_id": oid})
-    return jsonify(mensaje="Workspace eliminado")
+    invitations().delete_many({"workspace_id": oid})
+
+    result = workspaces().delete_one({"_id": oid})
+    if result.deleted_count == 0:
+        return jsonify(error="Workspace no encontrado"), 404
+
+    return jsonify(message="Workspace eliminado correctamente"), 200
 
 
 # ── GET /workspaces/<ws_id>/members ───────────────────────────
