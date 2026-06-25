@@ -380,10 +380,10 @@
 
       if (!isGod && allWs.length === 0) {
         html += joinSectionHtml();
-        if (user.role === 'superadmin') {
-          html += '<div class="ws-divider">o bien</div>';
-          html += createWsFormHtml(false);
-        }
+      }
+      if (!isGod && user.role === 'superadmin') {
+        html += '<div class="ws-divider">o bien</div>';
+        html += createWsFormHtml(false);
       }
 
       main.innerHTML = html;
