@@ -1,12 +1,12 @@
 # backend/routes/events.py — rutas /events/* y /leaderboard
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bson import ObjectId
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
 
-from db import users, events, badges, scans, event_joins, user_achievements, workspaces
+from db import users, events, badges, scans, event_joins, user_achievements, workspaces, reviews
 from utils import valid_oid, fmt_event, fmt_badge, compute_event_status, haversine
 from services.xp import compute_level, level_name
 
@@ -323,3 +323,46 @@ def global_leaderboard():
             }
 
     return jsonify({"ranking": ranking, "my_position": my_position}), 200
+
+
+@events_bp.route("/<event_id>/review", methods=["POST"])
+@jwt_required()
+def submit_review(event_id):
+    user_id = ObjectId(get_jwt_identity())
+    try:
+        oid = ObjectId(event_id)
+    except Exception:
+        return jsonify(error="ID inválido"), 400
+
+    event = events().find_one({"_id": oid})
+    if not event:
+        return jsonify(error="Evento no encontrado"), 404
+
+    status = compute_event_status(event)
+    if status != "finished":
+        return jsonify(error="Solo puedes reseñar eventos finalizados"), 400
+
+    existing = reviews().find_one({"user_id": user_id, "event_id": oid})
+    if existing:
+        return jsonify(error="Ya enviaste una reseña para este evento"), 400
+
+    data = request.get_json() or {}
+    rating = data.get("rating")
+    recommend = data.get("recommend")
+    best_part = data.get("best_part")
+    return_again = data.get("return_again")
+
+    if not rating or rating not in [1, 2, 3, 4, 5]:
+        return jsonify(error="Calificación inválida"), 400
+
+    reviews().insert_one({
+        "user_id": user_id,
+        "event_id": oid,
+        "rating": rating,
+        "recommend": recommend,
+        "best_part": best_part,
+        "return_again": return_again,
+        "created_at": datetime.now(timezone.utc)
+    })
+
+    return jsonify(message="Reseña enviada correctamente"), 201
