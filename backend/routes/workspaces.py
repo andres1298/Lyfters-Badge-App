@@ -437,6 +437,10 @@ def invite_member(ws_id):
                     {"workspace_id": oid, "user_id": existing_user["_id"]},
                     {"$set": {"role": role}}
                 )
+                if role in ("admin", "superadmin", "god_admin"):
+                    users().update_one({"_id": existing_user["_id"]}, {"$set": {"role": role}})
+                elif role == "participant":
+                    users().update_one({"_id": existing_user["_id"]}, {"$set": {"role": "participant"}})
                 return jsonify(
                     message=f"{email} ya era miembro. Rol actualizado a {role}.",
                     direct=True,
@@ -451,6 +455,10 @@ def invite_member(ws_id):
                     "joined_at":    datetime.now(timezone.utc),
                     "invited_by":   caller
                 })
+                if role in ("admin", "superadmin", "god_admin"):
+                    users().update_one({"_id": existing_user["_id"]}, {"$set": {"role": role}})
+                elif role == "participant":
+                    users().update_one({"_id": existing_user["_id"]}, {"$set": {"role": "participant"}})
                 return jsonify(
                     message=f"{email} agregado como {role} directamente.",
                     direct=True,
