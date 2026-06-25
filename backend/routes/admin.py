@@ -9,7 +9,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from bson import ObjectId
 
-from db import users, events, badges, scans, workspace_members, workspaces
+from db import users, events, badges, scans, workspace_members, workspaces, event_joins
 from utils import (
     require_admin, valid_oid, sanitize,
     generate_qr_base64, fmt_event, fmt_admin_badge, fmt_user, compute_event_status
@@ -762,3 +762,68 @@ def xp_leaderboard():
             "level":  u.get("level", 1)
         })
     return jsonify(result), 200
+
+
+@admin_bp.route("/stats/global", methods=["GET"])
+@jwt_required()
+def global_stats():
+    if get_jwt().get("role") != "god_admin":
+        return jsonify(error="Solo god_admin"), 403
+    total_users = users().count_documents({})
+    total_events = events().count_documents({})
+    total_redeemed = scans().count_documents({})
+    total_badges = badges().count_documents({})
+    return jsonify(
+        total_users=total_users,
+        total_events=total_events,
+        total_redeemed=total_redeemed,
+        total_badges=total_badges
+    ), 200
+
+
+@admin_bp.route("/events/<event_id>/stats", methods=["GET"])
+@jwt_required()
+def event_stats_detail(event_id):
+    if not require_admin():
+        return jsonify(error="Acceso denegado"), 403
+    try:
+        oid = ObjectId(event_id)
+    except Exception:
+        return jsonify(error="ID inválido"), 400
+
+    joins = list(event_joins().find({"event_id": oid}))
+    badge_list = list(badges().find({"event_id": oid}))
+    total_b = len(badge_list)
+    badge_ids = [b["_id"] for b in badge_list]
+
+    participants = []
+    for j in joins:
+        user_doc = users().find_one({"_id": j["user_id"]}, {"name": 1, "email": 1})
+        user_scans = scans().count_documents({"user_id": j["user_id"], "badge_id": {"$in": badge_ids}})
+        pct = round((user_scans / total_b) * 100) if total_b else 0
+        participants.append({
+            "name": user_doc.get("name", "") if user_doc else "",
+            "email": user_doc.get("email", "") if user_doc else "",
+            "badges_obtained": user_scans,
+            "total_badges": total_b,
+            "progress": pct
+        })
+
+    badge_stats = []
+    for b in badge_list:
+        count = scans().count_documents({"badge_id": b["_id"]})
+        badge_stats.append({"name": b.get("name", ""), "count": count})
+    badge_stats.sort(key=lambda x: x["count"], reverse=True)
+
+    from collections import defaultdict
+    hourly = defaultdict(int)
+    for s in scans().find({"badge_id": {"$in": badge_ids}}):
+        if s.get("redeemed_at"):
+            hourly[s["redeemed_at"].hour] += 1
+    hourly_stats = [{"hour": h, "count": hourly[h]} for h in range(24) if hourly[h] > 0]
+
+    return jsonify(
+        participants=participants,
+        badge_stats=badge_stats,
+        hourly_scans=hourly_stats
+    ), 200
