@@ -90,7 +90,9 @@ def switch_workspace():
     if ban_resp:
         return ban_resp
 
-    role = get_jwt().get("role", "participant")
+    # Leemos el rol global desde la DB (no del JWT viejo) para reflejar cambios
+    # recientes — p. ej. un rol recién asignado al canjear un código de invitación.
+    role = user_doc.get("role", "participant")
     member = workspace_members().find_one({"user_id": ObjectId(user_id), "workspace_id": ws_oid})
 
     if role != "god_admin" and not member:
