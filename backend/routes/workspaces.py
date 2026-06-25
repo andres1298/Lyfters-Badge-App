@@ -555,12 +555,23 @@ def join_workspace():
     if existing:
         return jsonify(error="Ya sos miembro de este workspace"), 409
 
+    invite_code_role = inv.get("role") or "participant"
+    print('invite code role:', invite_code_role, 'assigned to:', str(uid), flush=True)
+
     workspace_members().insert_one({
         "workspace_id": ws_id,
         "user_id":      uid,
-        "role":         inv["role"],
+        "role":         invite_code_role,
         "joined_at":    datetime.now(timezone.utc),
     })
+
+    # Reflejar el rol de la invitación en el rol global del usuario: el JWT y el
+    # frontend leen users.role para decidir acceso de admin/superadmin, así que
+    # el rol del código debe respetarse sin importar cuál sea. Nunca degradamos
+    # a un god_admin (dueño de la plataforma).
+    user_doc = users().find_one({"_id": uid})
+    if (user_doc or {}).get("role") != "god_admin":
+        users().update_one({"_id": uid}, {"$set": {"role": invite_code_role}})
 
     invitations().update_one({"_id": inv["_id"]}, {"$set": {"status": "accepted"}})
 
@@ -569,7 +580,7 @@ def join_workspace():
         "mensaje":      "Te uniste al workspace",
         "workspace_id": str(ws_id),
         "workspace":    ws["name"] if ws else "",
-        "role":         inv["role"],
+        "role":         invite_code_role,
     })
 
 
