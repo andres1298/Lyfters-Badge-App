@@ -57,13 +57,30 @@ def list_events():
 def joined_events():
     uid = get_jwt_identity()
     user_oid = ObjectId(uid)
-    joined = event_joins().find({"user_id": user_oid})
-    event_ids = [j["event_id"] for j in joined]
+
+    joined_docs = list(event_joins().find({"user_id": user_oid}))
+    event_ids = [j["event_id"] for j in joined_docs]
+
+    # Último scan por evento para este usuario, para ordenar por actividad reciente.
+    last_scan_by_event = {}
+    for eid in event_ids:
+        last_scan = scans().find_one(
+            {"user_id": user_oid, "event_id": eid},
+            sort=[("scanned_at", -1)]
+        )
+        last_scan_by_event[str(eid)] = last_scan["scanned_at"] if last_scan else None
+
     result = []
     for eid in event_ids:
         e = events().find_one({"_id": eid, "active": True})
         if e:
-            result.append(fmt_event(e))
+            ev_dto = fmt_event(e)
+            ts = last_scan_by_event.get(str(eid))
+            ev_dto["last_scan_at"] = ts.isoformat() if ts else None
+            result.append(ev_dto)
+
+    # El más recientemente escaneado primero.
+    result.sort(key=lambda x: x.get("last_scan_at") or "", reverse=True)
     return jsonify(result), 200
 
 
