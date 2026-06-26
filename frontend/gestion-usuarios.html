@@ -358,10 +358,10 @@
           if (!res.ok) throw new Error(data.error || 'Error');
           toast(email + ' ahora es participante', 'success');
         } else if (role === 'god_admin') {
-          var res = await fetch(window.LyfterAPI.base + '/workspaces/set-role', {
+          var res = await fetch(window.LyfterAPI.base + '/workspaces/grant-god-admin', {
             method: 'POST',
             headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
-            body: JSON.stringify({ user_id: userId, role: 'god_admin' })
+            body: JSON.stringify({ email: email })
           });
           var data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Error');
