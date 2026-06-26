@@ -357,6 +357,14 @@ def update_member_role(ws_id, uid):
         {"$set": {"role": new_role}}
     )
 
+    # Eliminar membresías en otros workspaces — el usuario queda solo en este
+    target_doc = users().find_one({"_id": target_uid})
+    if (target_doc or {}).get("role") != "god_admin":
+        workspace_members().delete_many({
+            "user_id": target_uid,
+            "workspace_id": {"$ne": oid}
+        })
+
     if new_role in ("admin", "superadmin"):
         users().update_one({"_id": target_uid}, {"$set": {"role": new_role}})
     elif new_role == "participant":
@@ -447,7 +455,12 @@ def invite_member(ws_id):
                     role=role
                 ), 200
             else:
-                workspace_members().delete_many({"user_id": existing_user["_id"]})
+                # Solo limpiar membresías anteriores si no es god_admin
+                if existing_user.get("role") != "god_admin":
+                    workspace_members().delete_many({
+                        "user_id": existing_user["_id"],
+                        "workspace_id": {"$ne": oid}
+                    })
                 workspace_members().insert_one({
                     "workspace_id": oid,
                     "user_id":      existing_user["_id"],
@@ -568,26 +581,34 @@ def join_workspace():
 
     ws_id = inv["workspace_id"]
 
+    invite_code_role = inv.get("role") or "participant"
+
+    user_doc = users().find_one({"_id": uid})
+    is_god_admin = (user_doc or {}).get("role") == "god_admin"
+
     existing = workspace_members().find_one({"workspace_id": ws_id, "user_id": uid})
     if existing:
-        return jsonify(error="Ya sos miembro de este workspace"), 409
-
-    invite_code_role = inv.get("role") or "participant"
-    print('invite code role:', invite_code_role, 'assigned to:', str(uid), flush=True)
-
-    workspace_members().insert_one({
-        "workspace_id": ws_id,
-        "user_id":      uid,
-        "role":         invite_code_role,
-        "joined_at":    datetime.now(timezone.utc),
-    })
+        # Ya es miembro de este workspace — actualizar rol y limpiar otros
+        workspace_members().update_one(
+            {"workspace_id": ws_id, "user_id": uid},
+            {"$set": {"role": invite_code_role, "joined_at": datetime.now(timezone.utc)}}
+        )
+    else:
+        # Nuevo workspace — eliminar membresías anteriores (excepto god_admin)
+        if not is_god_admin:
+            workspace_members().delete_many({"user_id": uid, "workspace_id": {"$ne": ws_id}})
+        workspace_members().insert_one({
+            "workspace_id": ws_id,
+            "user_id":      uid,
+            "role":         invite_code_role,
+            "joined_at":    datetime.now(timezone.utc),
+        })
 
     # Reflejar el rol de la invitación en el rol global del usuario: el JWT y el
     # frontend leen users.role para decidir acceso de admin/superadmin, así que
     # el rol del código debe respetarse sin importar cuál sea. Nunca degradamos
     # a un god_admin (dueño de la plataforma).
-    user_doc = users().find_one({"_id": uid})
-    if (user_doc or {}).get("role") != "god_admin":
+    if not is_god_admin:
         users().update_one({"_id": uid}, {"$set": {"role": invite_code_role}})
 
     invitations().update_one({"_id": inv["_id"]}, {"$set": {"status": "accepted"}})
