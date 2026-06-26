@@ -60,7 +60,7 @@
         '</div>' +
         sections.map(function(sec) {
           return '<div style="margin-bottom:24px;">' +
-            '<h3 style="font-family:Poppins,sans-serif;font-size:15px;font-weight:700;color:#f4f6f9;margin:0 0 10px;">' + sec.emoji + ' ' + sec.title + '</h3>' +
+            '<h3 style="font-family:Poppins,sans-serif;font-size:15px;font-weight:700;color:#f4f6f9;margin:0 0 10px;">' + sec.title + '</h3>' +
             (sec.events.length
               ? sec.events.map(eventCard).join('')
               : '<p style="font-size:13px;color:#8b93a3;padding:8px 0;">' + sec.empty + '</p>') +

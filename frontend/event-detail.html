@@ -71,11 +71,11 @@
       var btn = document.getElementById('save-btn-' + evId);
       if (idx > -1) {
         saved.splice(idx, 1);
-        if (btn) { btn.textContent = '🔖 Guardar evento'; btn.style.color = '#8b93a3'; btn.style.borderColor = '#2f343f'; btn.style.background = 'transparent'; }
+        if (btn) { btn.textContent = 'Guardar evento'; btn.style.color = '#8b93a3'; btn.style.borderColor = '#2f343f'; btn.style.background = 'transparent'; }
         U.toast('Evento eliminado de guardados', 'info');
       } else {
         saved.push(evId);
-        if (btn) { btn.textContent = '🔖 Guardado'; btn.style.color = '#d897e7'; btn.style.borderColor = 'rgba(216,151,231,0.4)'; btn.style.background = 'rgba(216,151,231,0.1)'; }
+        if (btn) { btn.textContent = 'Guardado'; btn.style.color = '#d897e7'; btn.style.borderColor = 'rgba(216,151,231,0.4)'; btn.style.background = 'rgba(216,151,231,0.1)'; }
         U.toast('Evento guardado', 'success');
       }
       localStorage.setItem('saved_events', JSON.stringify(saved));
@@ -133,7 +133,7 @@
             'background:' + (isSaved ? 'rgba(216,151,231,0.1)' : 'transparent') + ';' +
             'color:' + (isSaved ? '#d897e7' : '#8b93a3') + ';' +
             'font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">' +
-            (isSaved ? '🔖 Guardado' : '🔖 Guardar evento') +
+            (isSaved ? 'Guardado' : 'Guardar evento') +
           '</button>';
         })();
     }
