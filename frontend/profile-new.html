@@ -40,9 +40,10 @@
       var profile = await API.getProfile();
       U.hideLoading();
 
+      var profileAvatar = profile.avatar || (user && user.avatar) || null;
       var initials = (user.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
-      var avatarHtml = user.avatar
-        ? '<img src="' + U.esc(user.avatar) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #d897e7;" />'
+      var avatarHtml = profileAvatar
+        ? '<img src="' + U.esc(profileAvatar) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #d897e7;" />'
         : '<div style="width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,#d897e7,#e68a8d);display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:32px;font-weight:700;color:#1c1f27;">' + initials + '</div>';
 
       app.innerHTML =
@@ -77,6 +78,18 @@
             '</div>' +
           '</a>' +
         '</div>';
+
+      var navAvatar = profileAvatar
+        ? '<img src="' + U.esc(profileAvatar) + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(216,151,231,0.5);" />'
+        : '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#d897e7,#e68a8d);display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:9px;font-weight:800;color:#1c1f27;">' + initials + '</div>';
+      var headerAvatarBtn = document.getElementById('home-avatar-btn');
+      if (headerAvatarBtn) headerAvatarBtn.innerHTML = avatarHtml;
+      var navPerfilBtn = document.getElementById('nav-perfil-btn');
+      if (navPerfilBtn) {
+        var existingImg = navPerfilBtn.querySelector('img, div');
+        if (existingImg) existingImg.remove();
+        navPerfilBtn.insertAdjacentHTML('afterbegin', navAvatar);
+      }
 
       fetch(API.base + '/profile/xp', { headers: API.authHeaders() })
         .then(function(res) { return res.ok ? res.json() : null; })
