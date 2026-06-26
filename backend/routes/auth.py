@@ -16,7 +16,7 @@ from flask_jwt_extended import (
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
 
-from db import users, scans, workspace_members, invitations as invitations_col, achievements
+from db import users, scans, workspace_members, invitations as invitations_col, achievements, reviews, events
 from utils import sanitize, fmt_user
 from security.limiter import (
     register_limit, login_participant_limit, login_admin_limit, avatar_limit,
@@ -503,3 +503,21 @@ def reset_password():
     )
 
     return jsonify(ok=True, message="Contraseña actualizada correctamente"), 200
+
+
+@auth_bp.route("/my-reviews", methods=["GET"])
+@jwt_required()
+def my_reviews():
+    user_oid = ObjectId(get_jwt_identity())
+    user_reviews = list(reviews().find({"user_id": user_oid}).sort("created_at", -1))
+    result = []
+    for r in user_reviews:
+        ev = events().find_one({"_id": r["event_id"]}, {"title": 1, "name": 1})
+        result.append({
+            "event_name": ev.get("title", ev.get("name", "Evento")) if ev else "Evento",
+            "rating": r.get("rating", 0),
+            "recommend": r.get("recommend"),
+            "best_part": r.get("best_part"),
+            "return_again": r.get("return_again"),
+        })
+    return jsonify(reviews=result), 200

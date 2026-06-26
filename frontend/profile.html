@@ -1,231 +1,308 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Explorar — Lyfter Badge App</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <title>Mi Perfil — Lyfter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div id="loading-screen">
     <img src="assets/icons/ui/logo-lyfter.jpeg" alt="Lyfter" />
     <div class="loader"></div>
-    <span>Cargando...</span>
-  <div id="server-wakeup-notice" style="display:none;margin-top:16px;font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;text-align:center;max-width:240px;">
-    <img src="assets/icons/ui/reloj-de-arena.png" style="width:32px;height:32px;object-fit:contain;display:block;margin:0 auto 6px;opacity:0.7;" />
-    El servidor está despertando...<br>Esto puede tardar hasta 1 minuto.
+    <span>Cargando perfil...</span>
   </div>
-  </div>
-  <main id="app"></main>
+  <div id="app" style="position:relative;z-index:1;max-width:600px;margin:0 auto;padding:0 0 80px;"></div>
   <div id="modal-root"></div>
   <div id="toast-root" class="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none"></div>
-
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/utils.js"></script>
-  <script src="js/stars.js"></script>
+  <script src="js/particles.js"></script>
   <script>
-    (function () {
-      'use strict';
-      var API = window.LyfterAPI;
-      var U   = window.LyfterUtils;
+  (function() {
+    var API = window.LyfterAPI;
+    var U = window.LyfterUtils;
+    var user = API.currentUser();
+    if (!user) { window.location.replace('login.html'); return; }
 
-      var user = API.currentUser();
-      if (!user) { window.location.replace('login.html?next=' + encodeURIComponent(window.location.pathname + window.location.search)); return; }
-      if (user.role === 'god_admin') { window.location.replace('workspace-select.html'); return; }
+    var app = document.getElementById('app');
+    var activeTab = 'stats'; // stats | activity | reviews | achievements
 
-      var app = document.getElementById('app');
-      var _eventsPage = 0, EVENTS_PAGE = 8, _filteredOtherEvents = [];
+    async function init() {
+      var profile = await API.getProfile();
+      U.hideLoading();
+      renderHeader(profile);
+      renderTabs();
+      renderTab(activeTab, profile);
+    }
 
-      function pagerHtml(total, page, size, gotoFn) {
-        if (total <= size) return '';
-        var totalPages = Math.ceil(total / size);
-        var from = page * size + 1;
-        var to = Math.min((page + 1) * size, total);
-        var btns = '';
-        for (var p = 0; p < totalPages; p++) {
-          if (totalPages > 7 && p !== 0 && p !== totalPages - 1 && Math.abs(p - page) > 1) {
-            if (p === page - 2 || p === page + 2) btns += '<span style="color:#4a5060;align-self:center;padding:0 2px;">…</span>';
-            continue;
-          }
-          var active = p === page;
-          btns += '<button onclick="' + gotoFn + '(' + p + ')" style="min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';color:' + (active ? '#d897e7' : '#8b93a3') + ';font-family:Poppins,sans-serif;font-size:13px;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;">' + (p + 1) + '</button>';
-        }
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px;border-top:1px solid #2f343f;margin-top:8px;flex-wrap:wrap;gap:8px;">' +
-          '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;">' + from + '–' + to + ' de ' + total + '</span>' +
-          '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
-            (page > 0 ? '<button onclick="' + gotoFn + '(' + (page-1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">←</button>' : '') +
-            btns +
-            (page < totalPages - 1 ? '<button onclick="' + gotoFn + '(' + (page+1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">→</button>' : '') +
-          '</div>' +
+    // ── HEADER con foto y nombre ──
+    function renderHeader(profile) {
+      var initials = (user.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+      var avatarHtml = user.avatar
+        ? '<img src="' + U.esc(user.avatar) + '" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid #d897e7;" />'
+        : '<div style="width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#d897e7,#e68a8d);display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:28px;font-weight:700;color:#1c1f27;">' + initials + '</div>';
+
+      var headerEl = document.createElement('div');
+      headerEl.style.cssText = 'padding:32px 20px 20px;text-align:center;';
+      headerEl.innerHTML =
+        avatarHtml +
+        '<h2 style="font-family:Poppins,sans-serif;font-size:22px;font-weight:700;color:#f4f6f9;margin:12px 0 4px;">' + U.esc(user.name||'') + '</h2>' +
+        '<p style="font-family:Manrope,sans-serif;font-size:13px;color:#8b93a3;margin:0 0 8px;">' + U.esc(user.email||'') + '</p>' +
+        '<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:999px;background:rgba(216,151,231,0.12);border:1px solid rgba(216,151,231,0.25);">' +
+          '<span style="font-size:14px;color:#ffc850;">⭐</span>' +
+          '<span style="font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#d897e7;">' + (profile.xp_total||0) + ' XP</span>' +
+          '<span style="font-size:11px;color:#8b93a3;">· Nv. ' + (profile.level||1) + '</span>' +
         '</div>';
-      }
+      app.appendChild(headerEl);
+    }
 
-      function fmtDate(iso) {
-        if (!iso) return '';
-        try { return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }); }
-        catch(e) { return ''; }
-      }
+    // ── 4 BOTONES DE TABS ──
+    function renderTabs() {
+      var tabs = [
+        { id: 'stats', label: 'Stats', icon: '📊' },
+        { id: 'activity', label: 'Mi actividad', icon: '🗓' },
+        { id: 'reviews', label: 'Reseñas', icon: '⭐' },
+        { id: 'achievements', label: 'Logros', icon: '🏆' },
+      ];
 
-      function navHtml() {
-        return '<a href="landing.html" style="display:inline-flex;align-items:center;gap:6px;font-family:Manrope,sans-serif;font-size:12px;font-weight:600;color:#8b93a3;text-decoration:none;margin-bottom:10px;padding:4px 8px;border-radius:8px;transition:color .15s;" onmouseover="this.style.color=\'#d897e7\'" onmouseout="this.style.color=\'#8b93a3\'">← Inicio</a>' +
-        '<div style="display:flex;gap:4px;margin-bottom:24px;background:#1c1f27;border:1px solid #2f343f;border-radius:12px;padding:4px;">' +
-          '<a href="profile.html" style="flex:1;padding:8px 4px;border-radius:8px;text-decoration:none;text-align:center;font-family:Manrope,sans-serif;font-size:12px;font-weight:700;background:linear-gradient(135deg,rgba(216,151,231,0.3),rgba(230,138,141,0.2));color:#f4f6f9;">Explorar</a>' +
-          '<a href="user-events.html" style="flex:1;padding:8px 4px;border-radius:8px;text-decoration:none;text-align:center;font-family:Manrope,sans-serif;font-size:12px;font-weight:600;background:transparent;color:#8b93a3;">Eventos</a>' +
-          '<a href="scan.html" style="flex:1;padding:8px 4px;border-radius:8px;text-decoration:none;text-align:center;font-family:Manrope,sans-serif;font-size:12px;font-weight:600;background:transparent;color:#8b93a3;">Escanear</a>' +
-          '<a href="user-achievements.html" style="flex:1;padding:8px 4px;border-radius:8px;text-decoration:none;text-align:center;font-family:Manrope,sans-serif;font-size:12px;font-weight:600;background:transparent;color:#8b93a3;">Logros</a>' +
-          '<a href="user-ranking.html" style="flex:1;padding:8px 4px;border-radius:8px;text-decoration:none;text-align:center;font-family:Manrope,sans-serif;font-size:12px;font-weight:600;background:transparent;color:#8b93a3;">Ranking</a>' +
+      var tabsEl = document.createElement('div');
+      tabsEl.id = 'tabs-bar';
+      tabsEl.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 16px;margin-bottom:20px;';
+      tabsEl.innerHTML = tabs.map(function(t) {
+        var active = t.id === activeTab;
+        return '<button id="tab-btn-' + t.id + '" onclick="switchTab(\'' + t.id + '\')" style="' +
+          'padding:12px 6px;border-radius:14px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';' +
+          'background:' + (active ? 'rgba(216,151,231,0.15)' : '#1c1f27') + ';' +
+          'color:' + (active ? '#d897e7' : '#8b93a3') + ';' +
+          'font-family:Poppins,sans-serif;font-size:11px;font-weight:700;cursor:pointer;' +
+          'display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .2s;">' +
+          '<span style="font-size:20px;">' + t.icon + '</span>' +
+          t.label +
+        '</button>';
+      }).join('');
+      app.appendChild(tabsEl);
+
+      var contentEl = document.createElement('div');
+      contentEl.id = 'tab-content';
+      contentEl.style.cssText = 'padding:0 16px;';
+      app.appendChild(contentEl);
+    }
+
+    window.switchTab = function(tabId) {
+      activeTab = tabId;
+      var tabs = ['stats','activity','reviews','achievements'];
+      tabs.forEach(function(t) {
+        var btn = document.getElementById('tab-btn-' + t);
+        if (!btn) return;
+        var active = t === tabId;
+        btn.style.borderColor = active ? '#d897e7' : '#2f343f';
+        btn.style.background = active ? 'rgba(216,151,231,0.15)' : '#1c1f27';
+        btn.style.color = active ? '#d897e7' : '#8b93a3';
+      });
+      API.getProfile().then(function(profile) { renderTab(tabId, profile); });
+    };
+
+    // ── CONTENIDO DE CADA TAB ──
+    async function renderTab(tabId, profile) {
+      var content = document.getElementById('tab-content');
+      content.innerHTML = '<p style="text-align:center;color:#8b93a3;padding:32px;font-size:13px;">Cargando...</p>';
+
+      if (tabId === 'stats') await renderStats(profile, content);
+      else if (tabId === 'activity') await renderActivity(content);
+      else if (tabId === 'reviews') await renderReviews(content);
+      else if (tabId === 'achievements') await renderAchievements(profile, content);
+    }
+
+    // ── TAB: STATS ──
+    async function renderStats(profile, content) {
+      var events = profile.events || [];
+
+      // Tags favoritos
+      var tagCount = {};
+      events.forEach(function(ev) {
+        (ev.tags||[]).forEach(function(tag) { tagCount[tag] = (tagCount[tag]||0) + 1; });
+      });
+      var tagEntries = Object.entries(tagCount).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+      var totalTags = tagEntries.reduce(function(s,e){return s+e[1];},0);
+
+      // Top 3 eventos (por progreso del usuario)
+      var topEvents = events.slice().sort(function(a,b){return (b.obtained||0)-(a.obtained||0);}).slice(0,3);
+
+      // Eventos por workspace
+      var wsCount = {};
+      events.forEach(function(ev) {
+        var ws = ev.workspace_name || 'Sin empresa';
+        wsCount[ws] = (wsCount[ws]||0) + 1;
+      });
+
+      content.innerHTML =
+        // Donut de tags
+        '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:16px;padding:20px;margin-bottom:14px;">' +
+          '<h3 style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;margin:0 0 16px;">Tags favoritos</h3>' +
+          (tagEntries.length
+            ? '<div style="position:relative;width:160px;margin:0 auto 16px;"><canvas id="chart-tags" height="160"></canvas></div>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">' +
+                tagEntries.map(function(e, i) {
+                  var colors = ['#d897e7','#70cfff','#ffc850','#4ade80','#e68a8d','#f97316'];
+                  var pct = totalTags ? Math.round(e[1]/totalTags*100) : 0;
+                  return '<div style="display:flex;align-items:center;gap:4px;">' +
+                    '<span style="width:10px;height:10px;border-radius:50%;background:' + colors[i] + ';display:inline-block;"></span>' +
+                    '<span style="font-size:11px;color:#8b93a3;">' + U.esc(e[0]) + ' ' + pct + '%</span>' +
+                  '</div>';
+                }).join('') +
+              '</div>'
+            : '<p style="text-align:center;color:#8b93a3;font-size:13px;">Sin datos aún</p>') +
+        '</div>' +
+
+        // Top 3 eventos
+        '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:16px;padding:20px;margin-bottom:14px;">' +
+          '<h3 style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;margin:0 0 12px;">Top eventos</h3>' +
+          (topEvents.length
+            ? topEvents.map(function(ev, i) {
+                var medals = ['🥇','🥈','🥉'];
+                var pct = ev.total ? Math.round((ev.obtained||0)/ev.total*100) : 0;
+                return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #2f343f;">' +
+                  '<span style="font-size:20px;">' + (medals[i]||'') + '</span>' +
+                  '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-family:Poppins,sans-serif;font-size:13px;font-weight:600;color:#f4f6f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + U.esc(ev.name||ev.nombre||'') + '</div>' +
+                    '<div style="font-size:11px;color:#8b93a3;">' + (ev.obtained||0) + '/' + (ev.total||0) + ' badges</div>' +
+                  '</div>' +
+                  '<span style="font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#d897e7;">' + pct + '%</span>' +
+                '</div>';
+              }).join('')
+            : '<p style="text-align:center;color:#8b93a3;font-size:13px;">Sin eventos aún</p>') +
+        '</div>' +
+
+        // Barras por empresa
+        '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:16px;padding:20px;margin-bottom:14px;">' +
+          '<h3 style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;margin:0 0 16px;">Eventos por empresa</h3>' +
+          (Object.keys(wsCount).length
+            ? '<canvas id="chart-ws" height="200"></canvas>'
+            : '<p style="text-align:center;color:#8b93a3;font-size:13px;">Sin datos aún</p>') +
         '</div>';
-      }
 
-      async function init() {
-        try {
-          var profile = await API.getProfile();
-          var events = await API.listEvents();
-          var recommended = await API.getRecommended().catch(function() { return []; });
-
-          var avatarHtml = profile.avatar
-            ? '<img src="' + U.esc(profile.avatar) + '" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(216,151,231,0.5);">'
-            : '<img src="assets/icons/ui/icono-perfil.png" style="width:40px;height:40px;border-radius:50%;object-fit:contain;background:#2e323d;padding:6px;">';
-
-          var recommendedIds = recommended.map(function(e) { return e.id; });
-          var otherEvents = events.filter(function(e) { return recommendedIds.indexOf(e.id) === -1; });
-
-          function eventCard(e, isRecommended) {
-            var photoHtml = e.photo
-              ? '<div style="position:relative;height:180px;overflow:hidden;border-radius:16px 16px 0 0;"><img src="' + U.esc(e.photo) + '" style="width:100%;height:100%;object-fit:cover;" /></div>'
-              : '<div style="height:180px;border-radius:16px 16px 0 0;background:linear-gradient(120deg,#d897e7 0%,#e68a8d 60%,#ffcb8a 100%);display:flex;align-items:center;justify-content:center;"><img src="assets/icons/ui/icono-evento.png" style="width:60px;height:60px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.7;"></div>';
-
-            var statusColors = { upcoming: '#3b82f6', open: '#16a34a', ongoing: '#6C63FF', closed: '#d97706', postponed: '#9333ea' };
-            var statusLabels = { upcoming: 'Próximo', open: 'Abierto', ongoing: 'En curso', closed: 'Registro cerrado', postponed: 'Pospuesto' };
-            var statusColor = statusColors[e.status] || '#6C63FF';
-            var statusLabel = statusLabels[e.status] || e.status;
-
-            return '<div data-eid="' + e.id + '" class="event-card" style="background:#1c1f27;border:1px solid #2f343f;border-radius:16px;overflow:hidden;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'none\'">' +
-              photoHtml +
-              '<div style="padding:16px;">' +
-                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
-                  '<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;color:white;background:' + statusColor + ';">' + statusLabel + '</span>' +
-                  (isRecommended ? '<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(216,151,231,0.2);color:#d897e7;">✨ Para ti</span>' : '') +
-                '</div>' +
-                '<h3 style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + U.esc(e.name) + '</h3>' +
-                (e.description ? '<p style="font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + U.esc(e.description) + '</p>' : '') +
-                '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' +
-                  '<span style="font-size:11px;color:#8b93a3;font-family:Manrope,sans-serif;display:flex;align-items:center;"><img src="assets/icons/ui/icono-calendario-blanco.png" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;margin-right:4px;filter:brightness(0) invert(0.5);"> ' + fmtDate(e.start) + (e.end ? ' — ' + fmtDate(e.end) : '') + '</span>' +
-                  (e.location ? '<span style="font-size:11px;color:#8b93a3;font-family:Manrope,sans-serif;display:flex;align-items:center;gap:3px;"><img src="assets/icons/ui/icono-ubicacion.png" style="width:14px;height:14px;object-fit:contain;opacity:0.7;"> ' + U.esc(e.location) + '</span>' : '') +
-                '</div>' +
-                (e.tags && e.tags.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">' + e.tags.slice(0,3).map(function(tag) { return '<span style="font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid #353a46;color:#8b93a3;font-family:Manrope,sans-serif;">' + U.esc(tag) + '</span>'; }).join('') + '</div>' : '') +
-              '</div>' +
-            '</div>';
-          }
-
-          _filteredOtherEvents = otherEvents;
-
-          function renderEventsGrid(page) {
-            var container = document.getElementById('all-events-grid');
-            if (!container) return;
-            var list = _filteredOtherEvents;
-            var html;
-            if (!list.length) {
-              html = '<p style="color:#8b93a3;font-family:Manrope,sans-serif;">No hay más eventos disponibles.</p>';
-            } else {
-              var slice = list.slice(page * EVENTS_PAGE, (page + 1) * EVENTS_PAGE);
-              html = slice.map(function(e) { return eventCard(e, false); }).join('') +
-                pagerHtml(list.length, page, EVENTS_PAGE, '_goEventsPage');
-            }
-            container.innerHTML = html;
-            Array.prototype.forEach.call(container.querySelectorAll('.event-card'), function(card) {
-              card.addEventListener('click', function() {
-                var eid = card.getAttribute('data-eid');
-                if (eid) window.location.href = 'event-detail.html?id=' + eid;
-              });
-            });
-          }
-
-          window._goEventsPage = function(p) { _eventsPage = p; renderEventsGrid(p); window.scrollTo(0, 0); };
-
-          var inner =
-            '<div style="min-height:100vh;padding:20px 16px 40px;">' +
-              '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
-                '<div>' +
-                  '<p style="font-family:Manrope,sans-serif;font-size:13px;color:#8b93a3;margin:0;">Bienvenido,</p>' +
-                  '<h2 style="font-family:Poppins,sans-serif;font-size:22px;font-weight:700;color:#f4f6f9;margin:0;">' + U.esc(profile.nombre || user.name) + '</h2>' +
-                '</div>' +
-                '<button id="profile-menu-btn" style="background:transparent;border:none;cursor:pointer;padding:0;">' + avatarHtml + '</button>' +
-              '</div>' +
-              navHtml() +
-              '<div style="position:relative;margin-bottom:20px;">' +
-                '<img src="assets/icons/ui/lupa.png" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;object-fit:contain;opacity:0.5;">' +
-                '<input id="events-search" type="text" placeholder="Buscar eventos..." style="width:100%;height:48px;padding:0 18px 0 44px;background:#1c1f27;border:1px solid #2f343f;border-radius:12px;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:14px;outline:none;box-sizing:border-box;" />' +
-              '</div>' +
-              (recommended.length
-                ? '<h3 style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0 0 12px;">Recomendados para ti</h3>' +
-                  '<div id="recommended-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:16px;margin-bottom:24px;">' +
-                    recommended.map(function(e) { return eventCard(e, true); }).join('') +
-                  '</div>'
-                : '') +
-              '<h3 style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0 0 12px;">Todos los eventos</h3>' +
-              '<div id="all-events-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:16px;"></div>' +
-            '</div>';
-
-          app.innerHTML = inner;
-          renderEventsGrid(0);
-
-          document.getElementById('profile-menu-btn').addEventListener('click', async function() {
-            try {
-              var p = await API.getProfile();
-              U.showDrawer(p.avatar, p.nombre, null, false);
-            } catch(e) { U.showDrawer(null, null, null, false); }
+      // Renderizar gráficas
+      setTimeout(function() {
+        if (tagEntries.length) {
+          var colors = ['#d897e7','#70cfff','#ffc850','#4ade80','#e68a8d','#f97316'];
+          new Chart(document.getElementById('chart-tags'), {
+            type: 'doughnut',
+            data: { labels: tagEntries.map(function(e){return e[0];}), datasets: [{ data: tagEntries.map(function(e){return e[1];}), backgroundColor: colors.slice(0,tagEntries.length), borderWidth: 0 }] },
+            options: { responsive: false, plugins: { legend: { display: false } }, cutout: '65%' }
           });
-
-          Array.prototype.forEach.call(document.querySelectorAll('#recommended-grid .event-card'), function(card) {
-            card.addEventListener('click', function() {
-              var eid = card.getAttribute('data-eid');
-              if (eid) window.location.href = 'event-detail.html?id=' + eid;
-            });
-          });
-
-          var searchInput = document.getElementById('events-search');
-          if (searchInput) {
-            searchInput.addEventListener('input', function() {
-              var q = searchInput.value.trim().toLowerCase();
-              Array.prototype.forEach.call(document.querySelectorAll('#recommended-grid .event-card'), function(card) {
-                var eid = card.getAttribute('data-eid');
-                var ev = recommended.find(function(e) { return e.id === eid; });
-                if (!ev) return;
-                var match = !q || ev.name.toLowerCase().indexOf(q) !== -1 || (ev.tags || []).join(' ').toLowerCase().indexOf(q) !== -1;
-                card.style.display = match ? '' : 'none';
-              });
-              _filteredOtherEvents = !q ? otherEvents : otherEvents.filter(function(e) {
-                return e.name.toLowerCase().indexOf(q) !== -1 || (e.tags || []).join(' ').toLowerCase().indexOf(q) !== -1;
-              });
-              _eventsPage = 0;
-              renderEventsGrid(0);
-            });
-          }
-
-        } catch(err) {
-          app.innerHTML = U.errorHtml(err && err.message ? err.message : 'Error inesperado');
-          var retry = document.getElementById('err-retry');
-          if (retry) retry.addEventListener('click', init);
         }
-        window.scrollTo(0, 0);
-      }
+        if (Object.keys(wsCount).length) {
+          var wsLabels = Object.keys(wsCount);
+          new Chart(document.getElementById('chart-ws'), {
+            type: 'bar',
+            data: { labels: wsLabels, datasets: [{ data: wsLabels.map(function(k){return wsCount[k];}), backgroundColor: '#d897e766', borderColor: '#d897e7', borderWidth: 2, borderRadius: 6 }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#8b93a3' }, grid: { color: '#2f343f' } }, y: { ticks: { color: '#8b93a3', stepSize: 1 }, grid: { color: '#2f343f' } } } }
+          });
+        }
+      }, 100);
+    }
 
-      init();
-    })();
+    // ── TAB: MI ACTIVIDAD ──
+    async function renderActivity(content) {
+      try {
+        var profile = await API.getProfile();
+        var allEvents = profile.events || [];
+        var savedRaw = JSON.parse(localStorage.getItem('saved_events') || '[]');
+
+        // Guardados: eventos guardados por el usuario
+        var saved = savedRaw.map(function(id) { return allEvents.find(function(e){return e.id===id;}); }).filter(Boolean);
+
+        // Participando: eventos en curso donde tiene scans
+        var participating = allEvents.filter(function(ev){ return ev.status === 'ongoing' && (ev.obtained||0) > 0; });
+
+        // Completados: eventos donde tiene todos los badges o finalizados
+        var completed = allEvents.filter(function(ev){ return ev.status === 'finished' || (ev.obtained > 0 && ev.obtained >= ev.total); });
+
+        var sections = [
+          { title: 'Guardados', emoji: '🔖', events: saved, empty: 'No tenés eventos guardados. Explorá eventos y guárdalos.' },
+          { title: 'Participando', emoji: '🎯', events: participating, empty: 'No estás participando en ningún evento activo.' },
+          { title: 'Completados', emoji: '✅', events: completed, empty: 'Aún no has completado ningún evento.' },
+        ];
+
+        content.innerHTML = sections.map(function(sec) {
+          return '<div style="margin-bottom:20px;">' +
+            '<h3 style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;margin:0 0 10px;">' + sec.emoji + ' ' + sec.title + '</h3>' +
+            (sec.events.length
+              ? sec.events.map(function(ev) {
+                  return '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:12px;padding:14px;margin-bottom:8px;">' +
+                    '<div style="font-family:Poppins,sans-serif;font-size:13px;font-weight:600;color:#f4f6f9;">' + U.esc(ev.name||ev.nombre||'') + '</div>' +
+                    '<div style="font-size:11px;color:#8b93a3;margin-top:3px;">' + (ev.workspace_name||'') + '</div>' +
+                  '</div>';
+                }).join('')
+              : '<p style="font-size:13px;color:#8b93a3;padding:12px 0;">' + sec.empty + '</p>') +
+          '</div>';
+        }).join('');
+      } catch(e) {
+        content.innerHTML = '<p style="color:#e68a8d;text-align:center;padding:32px;">Error al cargar actividad.</p>';
+      }
+    }
+
+    // ── TAB: RESEÑAS ──
+    async function renderReviews(content) {
+      try {
+        var res = await fetch(API.base + '/auth/my-reviews', { headers: API.authHeaders() }).then(r => r.json());
+        var reviews = res.reviews || [];
+        var labels = { recommend: {si:'Sí',no:'No',talvez:'Tal vez'}, best_part: {organizacion:'Organización',contenido:'Contenido',networking:'Networking',badges:'Badges',otro:'Otro'}, return_again: {si:'Sí',no:'No',depende:'Depende'} };
+
+        content.innerHTML = reviews.length
+          ? reviews.map(function(r) {
+              var stars = '★'.repeat(r.rating) + '<span style="color:#2e323d;">' + '★'.repeat(5-r.rating) + '</span>';
+              return '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:14px;padding:16px;margin-bottom:12px;">' +
+                '<div style="font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#f4f6f9;margin-bottom:6px;">' + U.esc(r.event_name||'Evento') + '</div>' +
+                '<div style="font-size:18px;color:#ffc850;margin-bottom:8px;">' + stars + '</div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+                  (r.recommend ? pill('¿Recomendaría?', labels.recommend[r.recommend]||r.recommend, '#70cfff') : '') +
+                  (r.best_part ? pill('Lo mejor', labels.best_part[r.best_part]||r.best_part, '#d897e7') : '') +
+                  (r.return_again ? pill('¿Volvería?', labels.return_again[r.return_again]||r.return_again, '#4ade80') : '') +
+                '</div>' +
+              '</div>';
+            }).join('')
+          : '<p style="text-align:center;color:#8b93a3;padding:32px;font-size:13px;">Aún no has dejado reseñas.</p>';
+      } catch(e) {
+        content.innerHTML = '<p style="color:#e68a8d;text-align:center;padding:32px;">Error al cargar reseñas.</p>';
+      }
+    }
+
+    // ── TAB: LOGROS ──
+    async function renderAchievements(profile, content) {
+      var achievements = profile.achievements || [];
+      var defs = await API.loadAchievementDefs();
+
+      content.innerHTML = defs.length
+        ? '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">' +
+            defs.map(function(def) {
+              var unlocked = achievements.find(function(a){ return a.slug === def.slug; });
+              var ICONS = window.LyfterUtils.ACHIEVEMENT_ICONS || {};
+              var iconSrc = ICONS[def.slug] || 'assets/icons/ui/icono-badges-creados.png';
+              return '<div style="background:#1c1f27;border:1px solid ' + (unlocked ? '#d897e7' : '#2f343f') + ';border-radius:14px;padding:14px;text-align:center;opacity:' + (unlocked ? '1' : '0.4') + ';">' +
+                '<img src="' + iconSrc + '" style="width:40px;height:40px;object-fit:contain;margin-bottom:8px;" />' +
+                '<div style="font-family:Poppins,sans-serif;font-size:11px;font-weight:700;color:' + (unlocked ? '#f4f6f9' : '#8b93a3') + ';">' + U.esc(def.name||def.slug) + '</div>' +
+                (unlocked ? '<div style="font-size:10px;color:#4ade80;margin-top:3px;">✓ Desbloqueado</div>' : '') +
+              '</div>';
+            }).join('') +
+          '</div>'
+        : '<p style="text-align:center;color:#8b93a3;padding:32px;font-size:13px;">Sin logros definidos.</p>';
+    }
+
+    function pill(label, value, color) {
+      return '<div style="background:rgba(255,255,255,0.04);border:1px solid #2f343f;border-radius:8px;padding:5px 8px;">' +
+        '<div style="font-size:10px;color:#8b93a3;font-weight:700;text-transform:uppercase;">' + label + '</div>' +
+        '<div style="font-size:12px;color:' + color + ';font-weight:700;">' + value + '</div>' +
+      '</div>';
+    }
+
+    setTimeout(function() { U.hideLoading(); }, 6000);
+    init();
+  })();
   </script>
-  <script>
-    window.addEventListener('load', () => {
-      const ls = document.getElementById('loading-screen');
-      ls.style.opacity = '0';
-      ls.style.pointerEvents = 'none';
-    });
-  </script>
-  <script src="js/pato-tutorial.js"></script>
 </body>
 </html>
