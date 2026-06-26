@@ -76,7 +76,7 @@
 
       var user = API.currentUser();
       if (!user) { window.location.replace('login.html?next=' + encodeURIComponent(window.location.pathname + window.location.search)); return; }
-      if (['admin','superadmin','god_admin'].indexOf(user.role) !== -1) { window.location.replace('workspace-select.html'); return; }
+      if (user.role === 'god_admin') { window.location.replace('workspace-select.html'); return; }
 
       var app = document.getElementById('app');
       var scanning = false;
@@ -291,7 +291,7 @@
           if (r.xp && r.xp.gained > 0) {
             U.showXpGain(r.xp.gained, { levelUp: r.xp.levelUp, level: r.xp.level });
           }
-          showCelebration(r);
+          showCelebration(r, activeId);
         } catch (err) {
           processing = false;
           if (err.status === 'not_joined') {
@@ -390,11 +390,20 @@
         requestAnimationFrame(frame);
       }
 
-      function showCelebration(r) {
+      function showCelebration(r, activeId) {
+        scanning = false;
+        stopCamera();
+        window._scanDone = true;
         console.log('scan response:', r);
         launchConfetti();
         var modalRoot = document.getElementById('modal-root');
         var isLast = r.complete;
+
+        window._celebrateData = {
+          complete: r.complete,
+          eventId: activeId || '',
+          eventName: r.event_name || ''
+        };
         var badge  = r.badge || {};
         var isRare = badge.is_rare || badge.rarity === 'rare';
         var badgeName = r.badge ? r.badge.name : '';
@@ -419,22 +428,35 @@
         var xpEvent     = r.xp_event_bonus || r.xp_completion_bonus || 0;
         var xpTotal     = r.xp_gained || (r.xp && r.xp.gained) || (xpBase + xpFirstScan + xpRare + xpEvent);
 
-        var xpBlock = '';
-        if (xpTotal > 0) {
-          var xpRows = '';
-          if (xpBase > 0)
-            xpRows += '<div class="xp-row"><span class="xp-pill xp-cyan">+' + xpBase + ' XP</span><span class="xp-detail">badge</span></div>';
-          if (xpFirstScan > 0)
-            xpRows += '<div class="xp-row"><span class="xp-pill xp-cyan">+' + xpFirstScan + ' XP</span><span class="xp-detail">primer escaneo del evento ⭐</span></div>';
-          if (xpRare > 0)
-            xpRows += '<div class="xp-row"><span class="xp-pill xp-gold">+' + xpRare + ' XP</span><span class="xp-detail">bonus raro</span></div>';
-          if (xpEvent > 0)
-            xpRows += '<div class="xp-row"><span class="xp-pill xp-green">+' + xpEvent + ' XP</span><span class="xp-detail">completaste el evento 🎉</span></div>';
-          xpRows += '<hr style="border:none;border-top:1px solid #2a2e38;margin:8px 0;"/>';
-          var xpTotalColor = xpEvent > 0 ? '#abd194' : isRare ? '#ffc850' : '#70cfff';
-          xpRows += '<div style="font-size:12px;color:#8b93a3;">Total <span style="color:' + xpTotalColor + ';font-weight:700;">+' + xpTotal + ' XP</span></div>';
-          xpBlock = '<div style="margin:12px 0;">' + xpRows + '</div>';
-        }
+        var xpBlock = (r.xp && r.xp.gained > 0)
+          ? '<div style="margin:12px auto;display:flex;flex-direction:column;align-items:center;gap:6px;">' +
+              '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+                '<span style="padding:5px 14px;border-radius:999px;border:1.5px solid #4ade80;color:#4ade80;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;background:rgba(74,222,128,0.08);">+' + (r.xp.badge_xp || r.xp.gained) + ' XP</span>' +
+                '<span style="font-size:11px;color:#8b93a3;">badge</span>' +
+              '</div>' +
+              (r.xp.rare_bonus ?
+                '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+                  '<span style="padding:5px 14px;border-radius:999px;border:1.5px solid #ffc850;color:#ffc850;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;background:rgba(255,200,80,0.08);">+' + r.xp.rare_bonus + ' XP</span>' +
+                  '<span style="font-size:11px;color:#8b93a3;">bonus raro</span>' +
+                '</div>' : '') +
+              (r.xp.first_scan_bonus ?
+                '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+                  '<span style="padding:5px 14px;border-radius:999px;border:1.5px solid #70cfff;color:#70cfff;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;background:rgba(112,207,255,0.08);">+' + r.xp.first_scan_bonus + ' XP</span>' +
+                  '<span style="font-size:11px;color:#8b93a3;">primer escaneo</span>' +
+                '</div>' : '') +
+              (r.xp.completion_bonus ?
+                '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+                  '<span style="padding:5px 14px;border-radius:999px;border:1.5px solid #d897e7;color:#d897e7;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;background:rgba(216,151,231,0.08);">+' + r.xp.completion_bonus + ' XP</span>' +
+                  '<span style="font-size:11px;color:#8b93a3;">completaste el evento 🎉</span>' +
+                '</div>' : '') +
+              '<div style="border-top:1px solid #2f343f;padding-top:8px;margin-top:4px;">' +
+                '<span style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;">Total +' + r.xp.gained + ' XP</span>' +
+                (r.xp.level ? ' <span style="padding:3px 8px;border-radius:6px;background:#2e323d;color:#8b93a3;font-size:11px;font-weight:700;">Nv. ' + r.xp.level + '</span>' : '') +
+              '</div>' +
+            '</div>'
+          : (xpTotal > 0
+              ? '<div style="text-align:center;margin:12px 0;"><span style="padding:5px 14px;border-radius:999px;border:1.5px solid #4ade80;color:#4ade80;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;background:rgba(74,222,128,0.08);">+' + xpTotal + ' XP</span></div>'
+              : '');
 
         var linkedinShareUrl = 'https://www.linkedin.com/sharing/share-offsite/?url=' +
           encodeURIComponent(window.location.origin + '/profile.html') +
@@ -466,6 +488,13 @@
         document.getElementById('celebrate-ok').addEventListener('click', function() {
           U.closeModal();
           U.showAchievementUnlocks(r.achievements || [], function() {
+            if (window._celebrateData && window._celebrateData.complete && window._celebrateData.eventId) {
+              var alreadyReviewed = localStorage.getItem('reviewed_' + window._celebrateData.eventId);
+              if (!alreadyReviewed) {
+                openReviewModal(window._celebrateData.eventId, window._celebrateData.eventName);
+                return;
+              }
+            }
             window.location.href = 'user-events.html';
           });
         });
@@ -562,6 +591,143 @@
         ctx.quadraticCurveTo(x, y, x + r, y);
         ctx.closePath();
       }
+
+      window.openReviewModal = function(eventId, eventName) {
+        var modal = document.getElementById('modal-root');
+        window._reviewData = { eventId: eventId, rating: 0, recommend: null, best_part: null, return_again: null };
+
+        function starsHtml(selected) {
+          return [1,2,3,4,5].map(function(i) {
+            return '<span id="star-' + i + '" onclick="selectStar(' + i + ')" ' +
+              'onmouseover="hoverStar(' + i + ')" onmouseout="resetStars()" ' +
+              'style="font-size:36px;cursor:pointer;transition:transform 0.1s;display:inline-block;color:' + (i <= selected ? '#ffc850' : '#2e323d') + ';">★</span>';
+          }).join('');
+        }
+
+        modal.innerHTML =
+          '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;" onclick="if(event.target===this)closeReview()">' +
+            '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:20px;padding:28px 24px;max-width:380px;width:100%;" onclick="event.stopPropagation()">' +
+              '<h3 style="font-family:Poppins,sans-serif;font-size:18px;font-weight:700;color:#f4f6f9;margin:0 0 4px;">Calificá el evento</h3>' +
+              '<p style="font-family:Manrope,sans-serif;font-size:13px;color:#8b93a3;margin:0 0 20px;">' + U.esc(eventName || '') + '</p>' +
+
+              '<div style="text-align:center;margin-bottom:20px;">' +
+                '<p style="font-size:12px;font-weight:700;color:#8b93a3;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;">¿Cómo calificarías el evento?</p>' +
+                '<div id="stars-container">' + starsHtml(0) + '</div>' +
+                '<p id="rating-label" style="font-size:12px;color:#8b93a3;margin-top:8px;height:16px;"></p>' +
+              '</div>' +
+
+              '<div style="margin-bottom:16px;">' +
+                '<p style="font-size:12px;font-weight:700;color:#8b93a3;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">¿Lo recomendarías?</p>' +
+                '<div style="display:flex;gap:8px;">' +
+                  ['Sí|si', 'No|no', 'Tal vez|talvez'].map(function(opt) {
+                    var parts = opt.split('|');
+                    return '<button onclick="selectOption(this,\'recommend\')" data-val="' + parts[1] + '" ' +
+                      'style="flex:1;padding:10px;border-radius:10px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;">' +
+                      parts[0] + '</button>';
+                  }).join('') +
+                '</div>' +
+              '</div>' +
+
+              '<div style="margin-bottom:16px;">' +
+                '<p style="font-size:12px;font-weight:700;color:#8b93a3;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">¿Qué fue lo mejor?</p>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+                  ['Organización|organizacion', 'Contenido|contenido', 'Networking|networking', 'Badges|badges', 'Otro|otro'].map(function(opt) {
+                    var parts = opt.split('|');
+                    return '<button onclick="selectOption(this,\'best_part\')" data-val="' + parts[1] + '" ' +
+                      'style="padding:10px;border-radius:10px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;">' +
+                      parts[0] + '</button>';
+                  }).join('') +
+                '</div>' +
+              '</div>' +
+
+              '<div style="margin-bottom:24px;">' +
+                '<p style="font-size:12px;font-weight:700;color:#8b93a3;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">¿Volverías a participar?</p>' +
+                '<div style="display:flex;gap:8px;">' +
+                  ['Sí|si', 'No|no', 'Depende|depende'].map(function(opt) {
+                    var parts = opt.split('|');
+                    return '<button onclick="selectOption(this,\'return_again\')" data-val="' + parts[1] + '" ' +
+                      'style="flex:1;padding:10px;border-radius:10px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;">' +
+                      parts[0] + '</button>';
+                  }).join('') +
+                '</div>' +
+              '</div>' +
+
+              '<div style="display:flex;gap:10px;">' +
+                '<button onclick="closeReview()" style="flex:1;padding:12px;border-radius:12px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-family:Poppins,sans-serif;font-size:14px;cursor:pointer;">Omitir</button>' +
+                '<button onclick="submitReview(\'' + eventId + '\')" style="flex:2;padding:12px;border-radius:12px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Enviar reseña</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+
+        window.hoverStar = function(n) {
+          [1,2,3,4,5].forEach(function(i) {
+            var s = document.getElementById('star-' + i);
+            if (s) { s.style.color = i <= n ? '#ffc850' : '#2e323d'; s.style.transform = i === n ? 'scale(1.2)' : 'scale(1)'; }
+          });
+          var labels = ['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'];
+          var lbl = document.getElementById('rating-label');
+          if (lbl) lbl.textContent = labels[n];
+        };
+
+        window.resetStars = function() {
+          var sel = window._reviewData.rating;
+          [1,2,3,4,5].forEach(function(i) {
+            var s = document.getElementById('star-' + i);
+            if (s) { s.style.color = i <= sel ? '#ffc850' : '#2e323d'; s.style.transform = 'scale(1)'; }
+          });
+          var labels = ['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'];
+          var lbl = document.getElementById('rating-label');
+          if (lbl) lbl.textContent = sel ? labels[sel] : '';
+        };
+
+        window.selectStar = function(n) {
+          window._reviewData.rating = n;
+          resetStars();
+        };
+
+        window.selectOption = function(btn, field) {
+          var siblings = btn.parentElement.querySelectorAll('button');
+          siblings.forEach(function(b) {
+            b.style.background = 'transparent';
+            b.style.color = '#8b93a3';
+            b.style.borderColor = '#2f343f';
+          });
+          btn.style.background = 'rgba(216,151,231,0.15)';
+          btn.style.color = '#d897e7';
+          btn.style.borderColor = '#d897e7';
+          window._reviewData[field] = btn.getAttribute('data-val');
+        };
+      };
+
+      window.closeReview = function() {
+        var modal = document.getElementById('modal-root');
+        if (modal) modal.innerHTML = '';
+        window.location.href = 'user-events.html';
+      };
+
+      window.submitReview = async function(eventId) {
+        var d = window._reviewData;
+        if (!d.rating) { U.toast('Seleccioná una calificación con estrellas', 'error'); return; }
+        if (!d.recommend) { U.toast('Respondé todas las preguntas', 'error'); return; }
+        if (!d.best_part) { U.toast('Respondé todas las preguntas', 'error'); return; }
+        if (!d.return_again) { U.toast('Respondé todas las preguntas', 'error'); return; }
+
+        try {
+          var res = await fetch(API.base + '/events/' + eventId + '/review', {
+            method: 'POST',
+            headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+            body: JSON.stringify({ rating: d.rating, recommend: d.recommend, best_part: d.best_part, return_again: d.return_again })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error');
+          closeReview();
+          U.toast('¡Gracias por tu reseña!', 'success');
+          localStorage.setItem('reviewed_' + eventId, '1');
+          setTimeout(function() { window.location.href = 'user-events.html'; }, 800);
+        } catch(e) {
+          U.toast(e.message, 'error');
+        }
+      };
 
       startCamera();
     })();

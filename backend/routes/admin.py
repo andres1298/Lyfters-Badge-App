@@ -9,7 +9,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from bson import ObjectId
 
-from db import users, events, badges, scans, workspace_members, workspaces
+from db import users, events, badges, scans, workspace_members, workspaces, event_joins, reviews
 from utils import (
     require_admin, valid_oid, sanitize,
     generate_qr_base64, fmt_event, fmt_admin_badge, fmt_user, compute_event_status
@@ -98,84 +98,6 @@ def admin_list_events():
         for ws in workspaces().find({"_id": {"$in": list(ws_ids)}}, {"name": 1})
     }
     return jsonify([fmt_event(e) for e in docs]), 200
-
-
-@admin_bp.route("/events/<event_id>/stats", methods=["GET"])
-@jwt_required()
-def event_stats(event_id):
-    if not require_admin():
-        return jsonify(error="Acceso denegado"), 403
-    oid = valid_oid(event_id)
-    if not oid:
-        return jsonify(error="ID inválido"), 400
-    if not verify_event_ownership(event_id):
-        return jsonify(error="No tenés acceso a este evento"), 403
-    event = events().find_one({"_id": oid})
-    if not event:
-        return jsonify(error="Evento no encontrado"), 404
-
-    badge_docs = list(badges().find({"event_id": oid}))
-    total_badges = len(badge_docs)
-
-    participantes_activos = len(scans().distinct("user_id", {"event_id": oid}))
-
-    completaron = 0
-    progreso_dist = {"0-25": 0, "26-50": 0, "51-75": 0, "76-100": 0}
-    if total_badges > 0:
-        pipeline = [
-            {"$match": {"event_id": oid}},
-            {"$group": {"_id": "$user_id", "count": {"$sum": 1}}}
-        ]
-        for row in scans().aggregate(pipeline):
-            pct = (row["count"] / total_badges) * 100
-            if pct >= 100: completaron += 1
-            if pct <= 25: progreso_dist["0-25"] += 1
-            elif pct <= 50: progreso_dist["26-50"] += 1
-            elif pct <= 75: progreso_dist["51-75"] += 1
-            else: progreso_dist["76-100"] += 1
-
-    total_canjeados = scans().count_documents({"event_id": oid})
-    pct_canjeados = round((total_canjeados / (total_badges * max(participantes_activos, 1))) * 100, 1) if total_badges > 0 else 0
-
-    badge_ranking = []
-    for b in badge_docs:
-        count = scans().count_documents({"badge_id": b["_id"]})
-        badge_ranking.append({"id": str(b["_id"]), "nombre": b.get("name", ""), "icon": b.get("icon", "🏅"), "count": count})
-    badge_ranking.sort(key=lambda x: x["count"], reverse=True)
-
-    top_users = []
-    pipeline2 = [
-        {"$match": {"event_id": oid}},
-        {"$group": {"_id": "$user_id", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-        {"$limit": 10}
-    ]
-    for row in scans().aggregate(pipeline2):
-        u = users().find_one({"_id": row["_id"]}, {"name": 1, "avatar": 1})
-        if u:
-            top_users.append({"nombre": u.get("name", ""), "avatar": u.get("avatar", None), "badges": row["count"]})
-
-    pipeline3 = [
-        {"$match": {"event_id": oid, "redeemed_at": {"$exists": True}}},
-        {"$group": {"_id": {"$hour": "$redeemed_at"}, "count": {"$sum": 1}}},
-        {"$sort": {"_id": 1}}
-    ]
-    actividad_hora = [{"hora": row["_id"], "count": row["count"]} for row in scans().aggregate(pipeline3)]
-
-    return jsonify({
-        "evento": {"id": str(event["_id"]), "nombre": event.get("title", "")},
-        "participantes_activos": participantes_activos,
-        "completaron": completaron,
-        "no_completaron": max(0, participantes_activos - completaron),
-        "pct_completaron": round((completaron / max(participantes_activos, 1)) * 100, 1),
-        "total_badges": total_badges,
-        "total_canjeados": total_canjeados,
-        "pct_canjeados": pct_canjeados,
-        "progreso_distribucion": progreso_dist,
-        "badge_ranking": badge_ranking[:10],
-        "top_usuarios": top_users,
-        "actividad_por_hora": actividad_hora,
-    }), 200
 
 
 @admin_bp.route("/event",  methods=["POST"])
@@ -762,3 +684,78 @@ def xp_leaderboard():
             "level":  u.get("level", 1)
         })
     return jsonify(result), 200
+
+
+@admin_bp.route("/stats/global", methods=["GET"])
+@jwt_required()
+def global_stats():
+    if get_jwt().get("role") != "god_admin":
+        return jsonify(error="Solo god_admin"), 403
+    total_users = users().count_documents({})
+    total_events = events().count_documents({})
+    total_redeemed = scans().count_documents({})
+    total_badges = badges().count_documents({})
+    return jsonify(
+        total_users=total_users,
+        total_events=total_events,
+        total_redeemed=total_redeemed,
+        total_badges=total_badges
+    ), 200
+
+
+@admin_bp.route("/events/<event_id>/stats", methods=["GET"])
+@jwt_required()
+def event_stats_detail(event_id):
+    if not require_admin():
+        return jsonify(error="Acceso denegado"), 403
+    try:
+        oid = ObjectId(event_id)
+    except Exception:
+        return jsonify(error="ID inválido"), 400
+
+    joins = list(event_joins().find({"event_id": oid}))
+    badge_list = list(badges().find({"event_id": oid}))
+    total_b = len(badge_list)
+    badge_ids = [b["_id"] for b in badge_list]
+
+    participants = []
+    for j in joins:
+        user_doc = users().find_one({"_id": j["user_id"]}, {"name": 1, "email": 1})
+        user_scans = scans().count_documents({"user_id": j["user_id"], "badge_id": {"$in": badge_ids}})
+        pct = round((user_scans / total_b) * 100) if total_b else 0
+        participants.append({
+            "name": user_doc.get("name", "") if user_doc else "",
+            "email": user_doc.get("email", "") if user_doc else "",
+            "badges_obtained": user_scans,
+            "total_badges": total_b,
+            "progress": pct
+        })
+
+    badge_stats = []
+    for b in badge_list:
+        count = scans().count_documents({"badge_id": b["_id"]})
+        badge_stats.append({"name": b.get("name", ""), "count": count})
+    badge_stats.sort(key=lambda x: x["count"], reverse=True)
+
+    from collections import defaultdict
+    hourly = defaultdict(int)
+    for s in scans().find({"badge_id": {"$in": badge_ids}}):
+        if s.get("redeemed_at"):
+            hourly[s["redeemed_at"].hour] += 1
+    hourly_stats = [{"hour": h, "count": hourly[h]} for h in range(24) if hourly[h] > 0]
+
+    event_reviews = list(reviews().find({"event_id": oid}))
+    total_reviews = len(event_reviews)
+    avg_rating = round(sum(r.get("rating", 0) for r in event_reviews) / total_reviews, 1) if total_reviews else 0
+    rating_distribution = {i: sum(1 for r in event_reviews if r.get("rating") == i) for i in range(1, 6)}
+
+    return jsonify(
+        participants=participants,
+        badge_stats=badge_stats,
+        hourly_scans=hourly_stats,
+        reviews={
+            "total": total_reviews,
+            "avg_rating": avg_rating,
+            "distribution": rating_distribution
+        }
+    ), 200

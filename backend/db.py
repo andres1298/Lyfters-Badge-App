@@ -58,6 +58,7 @@ def xp_log():            return get_db()["xp_log"]
 def workspaces():        return get_db()["workspaces"]
 def workspace_members(): return get_db()["workspace_members"]
 def invitations():       return get_db()["invitations"]
+def reviews():           return get_db()["reviews"]
 
 
 def init_indexes():

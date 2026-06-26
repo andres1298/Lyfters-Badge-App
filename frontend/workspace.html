@@ -27,6 +27,31 @@
 
     var app = document.getElementById('app');
     app.innerHTML = U.loadingHtml();
+    var _membersPage = 0, MEMBERS_PAGE = 15, _allMembers = [];
+
+    function pagerHtml(total, page, size, gotoFn) {
+      if (total <= size) return '';
+      var totalPages = Math.ceil(total / size);
+      var from = page * size + 1;
+      var to = Math.min((page + 1) * size, total);
+      var btns = '';
+      for (var p = 0; p < totalPages; p++) {
+        if (totalPages > 7 && p !== 0 && p !== totalPages - 1 && Math.abs(p - page) > 1) {
+          if (p === page - 2 || p === page + 2) btns += '<span style="color:#4a5060;align-self:center;padding:0 2px;">…</span>';
+          continue;
+        }
+        var active = p === page;
+        btns += '<button onclick="' + gotoFn + '(' + p + ')" style="min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';color:' + (active ? '#d897e7' : '#8b93a3') + ';font-family:Poppins,sans-serif;font-size:13px;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;">' + (p + 1) + '</button>';
+      }
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px;border-top:1px solid #2f343f;margin-top:8px;flex-wrap:wrap;gap:8px;">' +
+        '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;">' + from + '–' + to + ' de ' + total + '</span>' +
+        '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+          (page > 0 ? '<button onclick="' + gotoFn + '(' + (page-1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">←</button>' : '') +
+          btns +
+          (page < totalPages - 1 ? '<button onclick="' + gotoFn + '(' + (page+1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">→</button>' : '') +
+        '</div>' +
+      '</div>';
+    }
 
     var styles = '<style>' +
       '.ws-header{background:rgba(26,29,36,0.88);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid rgba(216,151,231,0.10);padding:16px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;}' +
@@ -97,13 +122,11 @@
         if (wsData && wsData.id) {
           var memRes = await fetch(API.base + '/workspaces/' + wsData.id + '/members', { headers: API.authHeaders() });
           members = memRes.ok ? await memRes.json() : [];
-          var invRes = await fetch(API.base + '/workspaces/' + wsData.id + '/invitations', { headers: API.authHeaders() });
-          invList = invRes.ok ? await invRes.json() : [];
         } else {
-          members = []; invList = [];
+          members = [];
         }
 
-        renderPage(wsData, members, invList, allWorkspaces, isGod);
+        renderPage(wsData, members, [], allWorkspaces, isGod);
         if (isGod) loadUsersForGrant();
       } catch(err) {
         // Si falla la carga pero es god_admin, igual mostrar el panel de herramientas
@@ -122,16 +145,15 @@
       var callerRole = isGod ? 'god_admin' : (ws.my_role || user.role);
       var callerRank = ROLE_RANK[callerRole] || 0;
 
-      var memberRows = members.map(function(m) {
+      _allMembers = members;
+
+      function buildMemberRow(m) {
         var initials   = (m.name || '?').split(' ').map(function(w){ return w[0] || ''; }).join('').slice(0,2).toUpperCase();
         var targetRank = ROLE_RANK[m.role] || 0;
-        var canEdit    = callerRank > targetRank;  // solo si tenés mayor rango
-
-        // Roles que puede asignar: solo menores al propio, nunca god_admin
+        var canEdit    = callerRank > targetRank;
         var assignableRoles = ['participant','admin','superadmin'].filter(function(r) {
           return ROLE_RANK[r] < callerRank;
         });
-
         var roleCell = m.role === 'god_admin'
           ? '<span class="ws-badge god_admin">God Admin</span>'
           : canEdit
@@ -142,28 +164,16 @@
                 }).join('') +
               '</select>'
             : '<span class="ws-badge ' + (m.role||'') + '" title="Sin permiso para editar este rol">' + (m.role||'') + '</span>';
-
         var removeBtn = canEdit
           ? '<button onclick="removeMember(\'' + ws.id + '\',\'' + m.user_id + '\')" class="ws-btn danger" style="height:34px;font-size:12px;padding:0 12px;">Remover</button>'
           : '<span style="font-size:11px;color:#4a5060;">—</span>';
-
         return '<tr id="row-' + m.user_id + '">' +
           '<td><span class="ws-avatar">' + initials + '</span>' + U.esc(m.name || '—') + '</td>' +
           '<td style="color:#8b93a3;">' + U.esc(m.email || '—') + '</td>' +
           '<td>' + roleCell + '</td>' +
           '<td>' + removeBtn + '</td>' +
         '</tr>';
-      }).join('');
-
-      var pendingInv = invList.filter(function(i){ return i.status === 'pending'; });
-      var invRows = pendingInv.map(function(i) {
-        return '<tr>' +
-          '<td>' + U.esc(i.email || '—') + '</td>' +
-          '<td><code style="background:#20242d;padding:2px 8px;border-radius:6px;font-family:JetBrains Mono,monospace;color:#d897e7;">' + (i.code||'') + '</code></td>' +
-          '<td><span class="ws-badge ' + (i.role||'') + '">' + (i.role||'') + '</span></td>' +
-          '<td style="color:#8b93a3;font-size:12px;">' + (i.status||'') + '</td>' +
-        '</tr>';
-      }).join('');
+      }
 
       var allWsHtml = isGod ? '<div class="ws-card">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
@@ -200,7 +210,6 @@
 
           '<div class="ws-stat-grid">' +
             '<div class="ws-stat"><div class="ws-stat-num">' + members.length + '</div><div class="ws-stat-label">Miembros</div></div>' +
-            '<div class="ws-stat"><div class="ws-stat-num">' + pendingInv.length + '</div><div class="ws-stat-label">Invitaciones pendientes</div></div>' +
             (isGod ? '<div class="ws-stat"><div class="ws-stat-num">' + allWs.length + '</div><div class="ws-stat-label">Workspaces totales</div></div>' : '') +
           '</div>' +
 
@@ -239,9 +248,8 @@
 
           (ws.id && callerRank >= 3 ? '<div class="ws-card">' +
             '<div class="ws-card-title">Miembros del workspace</div>' +
-            (memberRows
-              ? '<div style="overflow-x:auto;"><table class="ws-table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody>' + memberRows + '</tbody></table></div>'
-              : '<p style="color:#8b93a3;text-align:center;padding:24px;">No hay miembros</p>') +
+            '<div style="overflow-x:auto;"><table class="ws-table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="members-tbody"></tbody></table></div>' +
+            '<div id="members-pager"></div>' +
           '</div>' : '') +
 
           (ws.id && callerRank >= 3 ? '<div class="ws-card">' +
@@ -254,8 +262,8 @@
               '<div style="display:flex;gap:12px;flex-wrap:wrap;">' +
                 '<input id="inv-email" type="email" placeholder="email@empresa.com" class="ws-input" style="flex:1;min-width:200px;" />' +
                 '<select id="inv-role" class="ws-select" style="width:180px;">' +
-                  '<option value="participant">Participante</option>' +
-                  (callerRank >= 3 ? '<option value="admin">Admin</option>' : '') +
+                  '<option value="admin">Admin</option>' +
+                  (callerRank >= 4 ? '<option value="superadmin">Super Admin</option>' : '') +
                 '</select>' +
                 '<button class="ws-btn cta" onclick="sendEmailInvite(\'' + ws.id + '\')">Enviar</button>' +
               '</div>' +
@@ -263,14 +271,13 @@
             '<div id="panel-code" style="display:none;">' +
               '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">' +
                 '<select id="code-role" class="ws-select" style="width:200px;">' +
-                  '<option value="participant">Participante</option>' +
-                  (callerRank >= 3 ? '<option value="admin">Admin</option>' : '') +
+                  '<option value="admin">Admin</option>' +
+                  (callerRank >= 4 ? '<option value="superadmin">Super Admin</option>' : '') +
                 '</select>' +
                 '<button class="ws-btn cta" onclick="generateCode(\'' + ws.id + '\')">Generar código</button>' +
               '</div>' +
               '<div id="code-result"></div>' +
             '</div>' +
-            (invRows ? '<div style="margin-top:20px;"><div style="font-size:13px;font-weight:700;color:#cdd2db;margin-bottom:10px;">Invitaciones pendientes</div><div style="overflow-x:auto;"><table class="ws-table"><thead><tr><th>Email</th><th>Código</th><th>Rol</th><th>Estado</th></tr></thead><tbody>' + invRows + '</tbody></table></div></div>' : '') +
           '</div>' : '') +
 
           (isGod ? '<div class="ws-card" style="border-color:rgba(255,200,80,0.25);background:linear-gradient(135deg,rgba(255,200,80,0.05),rgba(216,151,231,0.03));">' +
@@ -301,7 +308,6 @@
                   '</select>' +
                   '<input id="god-email" type="email" placeholder="o escribí el email directamente" class="ws-input" style="width:100%;" />' +
                   '<select id="grant-role-select" class="ws-select" style="width:100%;">' +
-                    '<option value="participant">Participante</option>' +
                     '<option value="admin">Admin</option>' +
                     '<option value="superadmin">Super Admin</option>' +
                   '</select>' +
@@ -327,6 +333,26 @@
           '</div>' : '') +
 
         '</div>';
+
+      if (ws.id && callerRank >= 3) {
+        _membersPage = 0;
+        var renderMembersTable = function(page) {
+          var tbody = document.getElementById('members-tbody');
+          var pagerEl = document.getElementById('members-pager');
+          if (!tbody) return;
+          var list = _allMembers;
+          if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="color:#8b93a3;text-align:center;padding:24px;">No hay miembros</td></tr>';
+            if (pagerEl) pagerEl.innerHTML = '';
+            return;
+          }
+          var slice = list.slice(page * MEMBERS_PAGE, (page + 1) * MEMBERS_PAGE);
+          tbody.innerHTML = slice.map(buildMemberRow).join('');
+          if (pagerEl) pagerEl.innerHTML = pagerHtml(list.length, page, MEMBERS_PAGE, '_goMembersPage');
+        };
+        window._goMembersPage = function(p) { _membersPage = p; renderMembersTable(p); window.scrollTo(0, 0); };
+        renderMembersTable(0);
+      }
     }
 
     window.switchTab = function(tab) {
@@ -545,6 +571,7 @@
 
     // ── Platform user management (god_admin) ──────────────────
     var _platformUsersCache = [];
+    var _puList = [], _puPage = 0, PU_PAGE = 15;
 
     window.loadPlatformUsers = async function() {
       var container = document.getElementById('platform-users-list');
@@ -567,23 +594,30 @@
       var filtered = q.length < 2 ? _platformUsersCache : _platformUsersCache.filter(function(u) {
         return (u.name + ' ' + u.email).toLowerCase().indexOf(lq) !== -1;
       });
+      _puPage = 0;
       renderPlatformUsers(filtered);
     };
 
     function renderPlatformUsers(list) {
+      _puList = list;
+      _puPage = 0;
+      renderPuPage(list, 0);
+    }
+
+    function renderPuPage(list, page) {
       var container = document.getElementById('platform-users-list');
       if (!container) return;
       if (!list.length) {
         container.innerHTML = '<p style="font-size:13px;color:#6f7686;text-align:center;padding:20px;">No se encontraron usuarios.</p>';
         return;
       }
-      var rows = list.map(function(u) {
+      var slice = list.slice(page * PU_PAGE, (page + 1) * PU_PAGE);
+      var rows = slice.map(function(u) {
         var initials = (u.name || '?').split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
         var statusCell = u.banned
           ? '<span class="ws-badge" style="background:rgba(230,138,141,0.15);color:#e68a8d;border:1px solid rgba(230,138,141,0.2);">Baneado' + (u.ban_permanent ? ' ∞' : '') + '</span>' +
             (u.ban_ip ? '<br/><span style="font-size:10px;color:#6f7686;margin-top:3px;display:block;">IP: ' + U.esc(u.ban_ip) + '</span>' : '')
           : '<span class="ws-badge" style="background:rgba(171,209,148,0.15);color:#abd194;">Activo</span>';
-
         var safeName = u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         var actions = '';
         if (!u.banned) {
@@ -595,7 +629,6 @@
         }
         actions += '<button onclick="deletePlatformUser(\'' + u.id + '\',\'' + safeName + '\')" ' +
           'class="ws-btn danger" style="height:30px;font-size:12px;padding:0 12px;">Eliminar</button>';
-
         return '<tr>' +
           '<td><span class="ws-avatar">' + initials + '</span>' + U.esc(u.name || '—') + '</td>' +
           '<td style="color:#8b93a3;">' + U.esc(u.email || '—') + '</td>' +
@@ -604,15 +637,17 @@
           '<td style="white-space:nowrap;">' + actions + '</td>' +
         '</tr>';
       }).join('');
-
       container.innerHTML =
         '<div style="overflow-x:auto;">' +
           '<table class="ws-table"><thead><tr>' +
             '<th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th>' +
           '</tr></thead><tbody>' + rows + '</tbody></table>' +
         '</div>' +
+        pagerHtml(list.length, page, PU_PAGE, '_goPuPage') +
         '<p style="font-size:11px;color:#4a5060;margin-top:10px;">' + list.length + ' usuario(s)</p>';
     }
+
+    window._goPuPage = function(p) { _puPage = p; renderPuPage(_puList, p); window.scrollTo(0, 0); };
 
     var _banModalTarget = null;
 
