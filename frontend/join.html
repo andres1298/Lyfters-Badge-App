@@ -88,6 +88,9 @@
       }
 
       API.joinEvent(eventId).then(function(r) {
+        // Guardar como evento activo inmediatamente al unirse, no solo al click del botón.
+        window.LyfterUtils.setActiveId(eventId);
+
         var msg = r.status === 'already_joined' ? 'Ya estás registrado en este evento.' : '¡Te uniste al evento!';
         var joinIcon = r.status === 'already_joined'
           ? '<img src="assets/icons/ui/icono-reclamado.png" style="width:48px;height:48px;object-fit:contain;margin:0 auto 12px;display:block;" />'
@@ -99,7 +102,7 @@
           '<button id="go-profile" class="w-full py-3 rounded-btn text-white font-semibold" style="background:#6C63FF;">Ver mis badges</button>';
         document.getElementById('go-profile').addEventListener('click', function() {
           window.LyfterUtils.setActiveId(eventId);
-          window.location.href = 'profile.html';
+          window.location.href = 'user-events.html';
         });
       }).catch(function(err) {
         app.innerHTML =

@@ -414,14 +414,24 @@
             } catch(e) {}
           }
 
-          // Determinar evento activo: primero por cercanía (<1km), luego por status
+          // Determinar evento activo:
+          // 1. Primero el que el usuario escaneó/se unió explícitamente (lyfter_active_event)
+          // 2. Luego por cercanía geográfica (<1km)
+          // 3. Luego por status ongoing/open
           var activeEv = null;
-          if (userLat !== null) {
+
+          var storedActiveId = U.getActiveId ? U.getActiveId() : localStorage.getItem('lyfter_active_event');
+          if (storedActiveId) {
+            activeEv = myEvents.find(function(ev) { return ev.id === storedActiveId; });
+          }
+
+          if (!activeEv && userLat !== null) {
             activeEv = myEvents.find(function(ev) {
               if (!ev.lat || !ev.lng) return false;
               return haversine(userLat, userLng, ev.lat, ev.lng) < 1000;
             });
           }
+
           if (!activeEv) {
             activeEv = myEvents.find(function(ev) {
               return ev.status === 'ongoing' || ev.status === 'open';
