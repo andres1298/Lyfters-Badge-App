@@ -61,11 +61,22 @@
           '</div>' +
         '</div>' +
 
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px;">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px;margin-bottom:12px;">' +
           btn('profile-stats.html', '<img src="assets/icons/ui/icono-participantes.png" style="width:28px;height:28px;object-fit:contain;">', 'Stats', 'Tus estadísticas', '#70cfff') +
           btn('profile-activity.html', '<img src="assets/icons/ui/icono-calendario-blanco.png" style="width:28px;height:28px;object-fit:contain;">', 'Mi actividad', 'Guardados y eventos', '#d897e7') +
           btn('profile-reviews.html', '<img src="assets/icons/ui/icono-evento.png" style="width:28px;height:28px;object-fit:contain;">', 'Reseñas', 'Tus reseñas enviadas', '#ffc850') +
           btn('profile-achievements.html', '<img src="assets/icons/ui/icono-badges-creados.png" style="width:28px;height:28px;object-fit:contain;">', 'Logros', 'Badges y logros', '#4ade80') +
+        '</div>' +
+        '<div style="padding:0 16px;">' +
+          '<a href="user-ranking.html" style="display:flex;flex-direction:row;align-items:center;gap:16px;text-align:left;padding:20px;background:#1c1f27;border:1px solid #2f343f;border-radius:20px;text-decoration:none;cursor:pointer;">' +
+            '<span style="display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;background:rgba(230,138,141,0.1);flex-shrink:0;">' +
+              '<i class="bi bi-trophy" style="font-size:24px;color:#e68a8d;"></i>' +
+            '</span>' +
+            '<div>' +
+              '<div style="font-family:Poppins,sans-serif;font-size:15px;font-weight:700;color:#f4f6f9;">Ranking</div>' +
+              '<div style="font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;">Tu posición global</div>' +
+            '</div>' +
+          '</a>' +
         '</div>';
 
       fetch(API.base + '/profile/xp', { headers: API.authHeaders() })
