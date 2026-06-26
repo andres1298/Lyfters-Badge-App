@@ -338,10 +338,6 @@ def submit_review(event_id):
     if not event:
         return jsonify(error="Evento no encontrado"), 404
 
-    status = compute_event_status(event)
-    if status != "finished":
-        return jsonify(error="Solo puedes reseñar eventos finalizados"), 400
-
     existing = reviews().find_one({"user_id": user_id, "event_id": oid})
     if existing:
         return jsonify(error="Ya enviaste una reseña para este evento"), 400
