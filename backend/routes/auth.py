@@ -17,7 +17,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
 
 from db import users, scans, workspace_members, invitations as invitations_col, achievements, reviews, events
-from utils import sanitize, fmt_user
+from utils import sanitize, fmt_user, compute_event_status
 from security.limiter import (
     register_limit, login_participant_limit, login_admin_limit, avatar_limit,
     forgot_password_limit
@@ -204,14 +204,41 @@ def get_profile():
     ban_resp = _ban_block(u)
     if ban_resp:
         return ban_resp
+
+    user_oid = ObjectId(uid)
+
+    from db import event_joins, badges
+    joins = list(event_joins().find({"user_id": user_oid}))
+    events_data = []
+    for j in joins:
+        ev = events().find_one({"_id": j["event_id"]})
+        if not ev:
+            continue
+        badge_list = list(badges().find({"event_id": j["event_id"]}, {"_id": 1}))
+        badge_ids = [b["_id"] for b in badge_list]
+        obtained = scans().count_documents({"user_id": user_oid, "badge_id": {"$in": badge_ids}})
+        events_data.append({
+            "id": str(ev["_id"]),
+            "name": ev.get("name", ev.get("title", "")),
+            "nombre": ev.get("name", ev.get("title", "")),
+            "workspace_name": ev.get("workspace_name", ""),
+            "status": compute_event_status(ev),
+            "tags": ev.get("tags", []),
+            "obtained": obtained,
+            "total": len(badge_list),
+        })
+
     return jsonify({
-        "id":      str(u["_id"]),
-        "nombre":  u.get("name", ""),
-        "email":   u.get("email", ""),
-        "rol":     u.get("role", "participant"),
-        "avatar":  u.get("avatar", None),
+        "id":       str(u["_id"]),
+        "nombre":   u.get("name", ""),
+        "email":    u.get("email", ""),
+        "rol":      u.get("role", "participant"),
+        "avatar":   u.get("avatar", None),
         "interests": u.get("interests", []),
-        "privacy": u.get("privacy", {"show_in_leaderboard": True, "show_badges": True})
+        "privacy":  u.get("privacy", {"show_in_leaderboard": True, "show_badges": True}),
+        "xp_total": u.get("xp_total", 0),
+        "level":    u.get("level", 1),
+        "events":   events_data,
     }), 200
 
 
