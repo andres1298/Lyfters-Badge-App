@@ -1004,45 +1004,24 @@ body {
 
 /* ── Pills ── */
 .home-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-family: Manrope, sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 999px;
+  font-family: 'Manrope', sans-serif; font-size: 10px; font-weight: 700;
 }
-.home-pill-purple {
-  background: rgba(216,151,231,0.14);
-  color: #d897e7;
-  border: 1px solid rgba(216,151,231,0.28);
-}
-.home-pill-gold {
-  background: rgba(255,200,80,0.14);
-  color: #ffc850;
-  border: 1px solid rgba(255,200,80,0.28);
-}
-.home-pill-green {
-  background: rgba(74,222,128,0.14);
-  color: #4ade80;
-  border: 1px solid rgba(74,222,128,0.28);
-}
-.home-pill-orange {
-  background: rgba(251,146,60,0.14);
-  color: #fb923c;
-  border: 1px solid rgba(251,146,60,0.28);
-}
+.home-pill-purple { background: rgba(216,151,231,0.12); color: #d897e7; border: 1px solid rgba(216,151,231,0.25); }
+.home-pill-gold   { background: rgba(255,200,80,0.1);   color: #ffc850; border: 1px solid rgba(255,200,80,0.2); }
+.home-pill-green  { background: rgba(67,217,173,0.1);   color: #43d9ad; border: 1px solid rgba(67,217,173,0.2); }
+.home-pill-orange { background: rgba(251,146,60,0.1);   color: #fb923c; border: 1px solid rgba(251,146,60,0.2); }
 .dot-live {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #4ade80;
-  display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #43d9ad; display: inline-block;
   animation: pulse-dot 1.4s infinite;
 }
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.75); }
+@keyframes pulse-dot { 0%,100%{ opacity:1; } 50%{ opacity:0.4; } }
+@keyframes pop-in { from{ opacity:0; transform:scale(0.94); } to{ opacity:1; transform:scale(1); } }
+
+/* ── Nav dot (active indicator) ── */
+.lyfter-nav-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #d897e7; margin-top: 2px;
 }
