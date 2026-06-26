@@ -105,7 +105,7 @@
               card.setAttribute('data-event-id', evId);
               card.innerHTML =
                 '<div style="font-family:Poppins,sans-serif;font-size:14px;font-weight:600;color:#f4f6f9;">' + evName + '</div>' +
-                '<button onclick="loadEventStats(\'' + evId + '\',\'' + evName + '\')" style="padding:6px 14px;border-radius:8px;border:none;background:rgba(112,207,255,0.15);color:#70cfff;font-family:Poppins,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Ver stats</button>';
+                '<a href="event-stats.html?event=' + evId + '&name=' + encodeURIComponent(ev.name||ev.nombre||'') + '" style="padding:6px 14px;border-radius:8px;background:rgba(112,207,255,0.15);color:#70cfff;font-family:Poppins,sans-serif;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;">Ver stats →</a>';
               container.appendChild(card);
             });
           } catch(e) {
@@ -141,7 +141,7 @@
               '<div style="font-family:Poppins,sans-serif;font-size:15px;font-weight:700;color:#f4f6f9;">' + evName + '</div>' +
               '<div style="font-size:12px;color:#8b93a3;margin-top:4px;">' + (ev.status||'') + '</div>' +
             '</div>' +
-            '<button onclick="loadEventStats(\'' + evId + '\',\'' + evName + '\')" style="padding:8px 16px;border-radius:8px;border:none;background:rgba(112,207,255,0.15);color:#70cfff;font-family:Poppins,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Ver stats</button>' +
+            '<a href="event-stats.html?event=' + evId + '&name=' + encodeURIComponent(ev.name||ev.nombre||'') + '" style="padding:8px 16px;border-radius:8px;background:rgba(112,207,255,0.15);color:#70cfff;font-family:Poppins,sans-serif;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;">Ver stats →</a>' +
           '</div>';
           evList.appendChild(card);
         });
