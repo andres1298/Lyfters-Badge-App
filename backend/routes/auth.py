@@ -16,7 +16,7 @@ from flask_jwt_extended import (
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
 
-from db import users, scans, workspace_members, invitations as invitations_col, achievements, reviews, events
+from db import users, scans, workspace_members, invitations as invitations_col, achievements, reviews, events, ip_bans
 from utils import sanitize, fmt_user, compute_event_status
 from security.limiter import (
     register_limit, login_participant_limit, login_admin_limit, avatar_limit,
@@ -207,7 +207,7 @@ def get_profile():
 
     user_oid = ObjectId(uid)
 
-    from db import event_joins, badges
+    from db import event_joins, badges, workspaces
     joins = list(event_joins().find({"user_id": user_oid}))
     events_data = []
     for j in joins:
@@ -217,11 +217,13 @@ def get_profile():
         badge_list = list(badges().find({"event_id": j["event_id"]}, {"_id": 1}))
         badge_ids = [b["_id"] for b in badge_list]
         obtained = scans().count_documents({"user_id": user_oid, "badge_id": {"$in": badge_ids}})
+        ws = workspaces().find_one({"_id": ev.get("workspace_id")}, {"name": 1}) if ev.get("workspace_id") else None
+        ws_name = ws.get("name", "") if ws else ""
         events_data.append({
             "id": str(ev["_id"]),
             "name": ev.get("name", ev.get("title", "")),
             "nombre": ev.get("name", ev.get("title", "")),
-            "workspace_name": ev.get("workspace_name", ""),
+            "workspace_name": ws_name,
             "status": compute_event_status(ev),
             "tags": ev.get("tags", []),
             "obtained": obtained,
@@ -342,6 +344,15 @@ def update_interests():
 @login_admin_limit
 @ip_guard_login
 def login():
+    now_dt    = datetime.utcnow()
+    client_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+
+    # Verificar IP ban ANTES de validar credenciales
+    if client_ip:
+        ip_ban_doc = ip_bans().find_one({"ip": client_ip, "expires_at": {"$gt": now_dt}})
+        if ip_ban_doc:
+            return jsonify(error="Tu acceso ha sido bloqueado desde esta red.", error_code="IP_BANNED"), 403
+
     data     = request.get_json() or {}
     email    = sanitize(data.get("email") or "", max_len=254).lower()
     password = (data.get("password") or "").encode()
@@ -361,14 +372,7 @@ def login():
     if ban_resp:
         return ban_resp
 
-    now_dt = datetime.utcnow()
-
-    # Check IP ban
-    client_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
     if client_ip:
-        ip_ban = users().find_one({"ban_ip": client_ip, "banned_until": {"$gt": now_dt}})
-        if ip_ban:
-            return jsonify(error="Acceso denegado desde esta red."), 403
         users().update_one({"_id": user["_id"]}, {"$set": {"last_login_ip": client_ip}})
 
     token = create_access_token(
