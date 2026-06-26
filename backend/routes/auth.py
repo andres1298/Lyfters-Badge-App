@@ -250,17 +250,30 @@ def get_profile():
             "total": len(badge_list),
         })
 
+    total_badges = scans().count_documents({"user_id": user_oid})
+
+    users_above = users().count_documents({
+        "xp_total": {"$gt": u.get("xp_total", 0)},
+        "$or": [
+            {"privacy.show_in_leaderboard": {"$ne": False}},
+            {"privacy": {"$exists": False}},
+        ],
+    })
+    rank = users_above + 1
+
     return jsonify({
-        "id":       str(u["_id"]),
-        "nombre":   u.get("name", ""),
-        "email":    u.get("email", ""),
-        "rol":      u.get("role", "participant"),
-        "avatar":   u.get("avatar", None),
-        "interests": u.get("interests", []),
-        "privacy":  u.get("privacy", {"show_in_leaderboard": True, "show_badges": True}),
-        "xp_total": u.get("xp_total", 0),
-        "level":    u.get("level", 1),
-        "events":   events_data,
+        "id":           str(u["_id"]),
+        "nombre":       u.get("name", ""),
+        "email":        u.get("email", ""),
+        "rol":          u.get("role", "participant"),
+        "avatar":       u.get("avatar", None),
+        "interests":    u.get("interests", []),
+        "privacy":      u.get("privacy", {"show_in_leaderboard": True, "show_badges": True}),
+        "xp_total":     u.get("xp_total", 0),
+        "level":        u.get("level", 1),
+        "total_badges": total_badges,
+        "rank":         rank,
+        "events":       events_data,
     }), 200
 
 
