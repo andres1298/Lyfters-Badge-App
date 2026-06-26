@@ -10,7 +10,7 @@
   var KEY_DONE   = 'lyfter_pato_done';
   var pageName   = (window.location.pathname.split('/').pop() || 'landing.html').replace('.html', '') || 'landing';
   var KEY_PAGE   = 'lyfter_pato_' + pageName;
-  var FINAL_PAGE = 'user-ranking';   /* completing this page ends the full tour */
+  var FINAL_PAGE = 'user-ranking';
 
   /* ── Bail early (zero cost if already seen) ──────────────── */
   try {
@@ -26,94 +26,112 @@
   } catch (e) {}
 
   var IMGS = {
-    pato1: base + 'pato/pato1.webp',   /* front-facing, confident — explaining */
-    pato2: base + 'pato/pato2.webp',   /* walking, side — excited / arriving   */
-    pato3: base + 'pato/pato3.png'     /* side glance — casual / follow me     */
+    pato1: base + 'pato/pato1.webp',
+    pato2: base + 'pato/pato2.webp',
+    pato3: base + 'pato/pato3.png'
   };
 
-  /* ── Steps per page ──────────────────────────────────────── */
+  /* ── Steps per page — target: CSS selector to spotlight ─── */
   var ALL_STEPS = {
     landing: [
       {
         duck: 'pato2', pos: 'br', anim: 'bounce',
+        target: null,
         text: '¡Hola! Soy <strong>Pato</strong>, tu guía en Lyfter 🦆<br>Te explico todo en segundos.'
       },
       {
         duck: 'pato1', pos: 'bl', anim: 'float',
+        target: '#como-funciona',
         text: 'Lyfter es una plataforma de <strong>gamificación para eventos</strong>. Asistís, escaneás QRs y coleccionás <strong>badges digitales</strong>.'
       },
       {
         duck: 'pato3', pos: 'br', anim: 'float',
+        target: '.stat-item:nth-child(3)',
         text: 'Al completar todos los badges de un evento ¡desbloqueás un <strong>premio sorpresa</strong>! 🎁'
       },
       {
         duck: 'pato1', pos: 'br', anim: 'celebrate',
+        target: '#hero-actions',
         text: '¿Listo para empezar? ¡Creá tu cuenta gratis y sumate al juego! 🚀'
       }
     ],
     profile: [
       {
         duck: 'pato2', pos: 'br', anim: 'bounce',
+        target: '#all-events-grid',
         text: '¡Bienvenido a tu panel! Acá ves todos los <strong>eventos disponibles</strong> en los que podés participar.'
       },
       {
         duck: 'pato1', pos: 'bl', anim: 'float',
+        target: '.event-card',
         text: 'Tocá cualquier evento para ver sus badges y unirte. Los marcados con ✨ son <strong>recomendados para vos</strong>.'
       },
       {
         duck: 'pato3', pos: 'bl', anim: 'hop',
+        target: null,
         text: '☝️ La barra de arriba tiene todas las secciones: <strong>Eventos, Escanear, Logros y Ranking</strong>. ¡Explorá!'
       },
       {
         duck: 'pato1', pos: 'br', anim: 'celebrate',
+        target: null,
         text: '¡Ya sabés todo lo básico! Ahora explorá, escaneá badges y subí al ranking. ¡Pato confía en vos! 🦆🚀'
       }
     ],
     'user-events': [
       {
         duck: 'pato3', pos: 'br', anim: 'bounce',
+        target: '#app',
         text: 'Acá están los eventos en los que <strong>ya participás</strong>. Ves tu progreso de badges en cada uno.'
       },
       {
         duck: 'pato2', pos: 'bl', anim: 'float',
+        target: null,
         text: 'Completá todos los badges de un evento para desbloquear el <strong>premio sorpresa</strong>. ¡No te quedes sin terminar ninguno! 🏆'
       }
     ],
     scan: [
       {
         duck: 'pato2', pos: 'bl', anim: 'bounce',
+        target: '#scan-video',
         text: '¡Esta es mi parte favorita! 📸 Apuntá la cámara al <strong>código QR</strong> de cualquier badge para escanearlo.'
       },
       {
         duck: 'pato1', pos: 'br', anim: 'float',
+        target: null,
         text: 'Cada badge tiene un QR único. Escaneá todos los de un evento para completar la colección y <strong>ganar el premio</strong>. ¡A cazar badges!'
       }
     ],
     'user-achievements': [
       {
         duck: 'pato1', pos: 'br', anim: 'bounce',
+        target: '#app',
         text: 'Los <strong>Logros</strong> son medallas especiales que ganás al cumplir objetivos dentro de Lyfter.'
       },
       {
         duck: 'pato2', pos: 'bl', anim: 'float',
+        target: null,
         text: 'Hay <strong>4 rarezas</strong>: Común ⚪, Raro 🟢, Épico 🟣 y Legendario 🟡. ¡Los más difíciles dan más XP!'
       },
       {
         duck: 'pato3', pos: 'br', anim: 'celebrate',
+        target: null,
         text: 'Los logros bloqueados muestran una <strong>pista</strong> para obtenerlos. ¡Completá todos para ser un maestro Lyfter! 🌟'
       }
     ],
     'user-ranking': [
       {
         duck: 'pato1', pos: 'br', anim: 'bounce',
+        target: '#panel-leaderboard',
         text: 'El ranking muestra quién acumula más <strong>XP</strong>. ¡Escaneá badges y desbloqueá logros para subir posiciones!'
       },
       {
         duck: 'pato2', pos: 'bl', anim: 'float',
+        target: '#tab-leaderboard',
         text: 'Cada badge y logro te da XP. ¡Apuntá al podio y mostrá de qué estás hecho! 🏆'
       },
       {
         duck: 'pato1', pos: 'br', anim: 'celebrate',
+        target: null,
         text: '¡Completaste el tour con Pato! Ya sabés todo sobre Lyfter. ¡Buena suerte y a coleccionar! 🦆✨'
       }
     ]
@@ -124,12 +142,51 @@
 
   var stepIdx = 0;
   var total   = steps.length;
+  var spotRetryTimer = null;
 
   /* ── Inject CSS ──────────────────────────────────────────── */
   var styleEl = document.createElement('style');
   styleEl.textContent = [
-    /* Container — opacity-only transition avoids conflict with translateX(-50%) on pos-bc */
-    '#pato-wrap{position:fixed;z-index:9990;display:flex;flex-direction:column;',
+    /* ── Dark overlay ──────────────────────────────────────── */
+    '#pato-overlay{',
+    'position:fixed;inset:0;',
+    'background:rgba(0,0,0,.54);',
+    'z-index:9985;',
+    'pointer-events:all;',
+    'transition:opacity .35s ease;',
+    '}',
+
+    /* ── Spotlight ring (transparent box with glowing border) ── */
+    '#pato-spot{',
+    'position:fixed;',
+    'z-index:9986;',
+    'pointer-events:none;',
+    'border-radius:14px;',
+    'opacity:0;',
+    'transition:opacity .3s ease, top .35s cubic-bezier(.34,1.56,.64,1),',
+    '           left .35s cubic-bezier(.34,1.56,.64,1),',
+    '           width .35s cubic-bezier(.34,1.56,.64,1),',
+    '           height .35s cubic-bezier(.34,1.56,.64,1);',
+    '}',
+    '#pato-spot.visible{',
+    'opacity:1;',
+    'animation:pato-spot-pulse 2.2s ease-in-out infinite;',
+    '}',
+
+    '@keyframes pato-spot-pulse{',
+    '0%,100%{box-shadow:',
+    '  0 0 0 9999px rgba(0,0,0,.54),',
+    '  0 0 0 2.5px rgba(216,151,231,.9),',
+    '  0 0 0 5px rgba(216,151,231,.2),',
+    '  0 0 28px rgba(216,151,231,.55);}',
+    '50%{box-shadow:',
+    '  0 0 0 9999px rgba(0,0,0,.54),',
+    '  0 0 0 2.5px rgba(216,151,231,1),',
+    '  0 0 0 8px rgba(216,151,231,.28),',
+    '  0 0 48px rgba(216,151,231,.8);}}',
+
+    /* ── Container — opacity-only transition ─────────────────── */
+    '#pato-wrap{position:fixed;z-index:9995;display:flex;flex-direction:column;',
     'align-items:center;pointer-events:none;',
     'transition:opacity .22s ease;}',
 
@@ -142,8 +199,9 @@
     /* Speech bubble */
     '#pato-bubble{position:relative;background:#1e2130;',
     'border:1px solid rgba(216,151,231,.35);border-radius:18px;',
-    'padding:14px 16px 12px;max-width:280px;min-width:190px;margin-bottom:10px;',
-    'box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 0 1px rgba(216,151,231,.08);',
+    'padding:17px 20px 15px;max-width:340px;min-width:230px;margin-bottom:12px;',
+    'box-shadow:0 8px 32px rgba(0,0,0,.55),0 0 0 1px rgba(216,151,231,.1),',
+    '           0 0 60px rgba(216,151,231,.08);',
     'pointer-events:all;',
     'animation:pato-bubble-in .38s cubic-bezier(.34,1.56,.64,1) both;}',
 
@@ -170,7 +228,7 @@
     '#pato-x:hover{color:#e68a8d;}',
 
     /* Body text */
-    '#pato-txt{font-family:Manrope,sans-serif;font-size:13px;line-height:1.65;',
+    '#pato-txt{font-family:Manrope,sans-serif;font-size:14.5px;line-height:1.65;',
     'color:#cdd2db;margin:0 20px 10px 0;}',
     '#pato-txt strong{color:#d897e7;font-weight:700;}',
     '#pato-txt br{line-height:2;}',
@@ -187,23 +245,23 @@
     '#pato-skip{background:none;border:none;font-family:Manrope,sans-serif;font-size:11px;',
     'color:#6f7686;cursor:pointer;pointer-events:all;padding:0;transition:color .15s;}',
     '#pato-skip:hover{color:#e68a8d;}',
-    '#pato-next{height:30px;padding:0 14px;',
+    '#pato-next{height:32px;padding:0 16px;',
     'background:linear-gradient(135deg,#d897e7,#e68a8d);border:none;border-radius:999px;',
     'font-family:Poppins,sans-serif;font-size:12px;font-weight:700;color:#3a1f20;',
     'cursor:pointer;pointer-events:all;',
     'transition:opacity .15s,transform .1s,box-shadow .15s;',
-    'box-shadow:0 2px 10px rgba(230,138,141,.3);}',
+    'box-shadow:0 2px 12px rgba(230,138,141,.35);}',
     '#pato-next:hover{opacity:.92;transform:translateY(-1px);',
-    'box-shadow:0 4px 16px rgba(230,138,141,.45);}',
+    'box-shadow:0 4px 18px rgba(230,138,141,.5);}',
 
     /* Duck image */
-    '#pato-img{width:130px;height:auto;display:block;',
-    'filter:drop-shadow(0 6px 22px rgba(0,0,0,.55));',
+    '#pato-img{width:172px;height:auto;display:block;',
+    'filter:drop-shadow(0 8px 28px rgba(0,0,0,.65)) drop-shadow(0 0 2px rgba(216,151,231,.2));',
     'pointer-events:all;cursor:pointer;',
     'transition:opacity .28s ease,filter .28s ease;',
     'transform-origin:bottom center;}',
     '#pato-img:hover{',
-    'filter:drop-shadow(0 6px 22px rgba(0,0,0,.55)) drop-shadow(0 0 14px rgba(216,151,231,.55));',
+    'filter:drop-shadow(0 8px 28px rgba(0,0,0,.65)) drop-shadow(0 0 18px rgba(216,151,231,.6));',
     '}',
 
     /* ── Keyframe animations ────────────────────────────────── */
@@ -243,8 +301,8 @@
     '75%{transform:translateX(-5px) rotate(-2.5deg)}}',
 
     '@keyframes pato-pulse-glow{',
-    '0%,100%{filter:drop-shadow(0 6px 22px rgba(0,0,0,.55)) drop-shadow(0 0 0px rgba(216,151,231,0))}',
-    '50%{filter:drop-shadow(0 6px 22px rgba(0,0,0,.55)) drop-shadow(0 0 18px rgba(216,151,231,.6))}}',
+    '0%,100%{filter:drop-shadow(0 8px 28px rgba(0,0,0,.65)) drop-shadow(0 0 0px rgba(216,151,231,0))}',
+    '50%{filter:drop-shadow(0 8px 28px rgba(0,0,0,.65)) drop-shadow(0 0 22px rgba(216,151,231,.7))}}',
 
     /* ── Animation classes ──────────────────────────────────── */
     '#pato-img.pato-float    {animation:pato-float     3.2s ease-in-out infinite;}',
@@ -260,7 +318,7 @@
     'left:50%;transform:translateX(-50%);right:auto;top:auto;bottom:20px;align-items:center;}',
     '#pato-wrap.pos-bc{left:50%;transform:translateX(-50%);}',
     '#pato-bubble{max-width:calc(100vw - 44px);min-width:220px;}',
-    '#pato-img{width:96px;}',
+    '#pato-img{width:128px;}',
     /* Re-center tails on mobile */
     '#pato-wrap.pos-br #pato-bubble::after,',
     '#pato-wrap.pos-bl #pato-bubble::after,',
@@ -270,21 +328,24 @@
     '#pato-wrap.pos-bl #pato-bubble::before,',
     '#pato-wrap.pos-tr #pato-bubble::before',
     '{left:50%;right:auto;transform:translateX(-50%);}',
+    '#pato-spot{display:none;}',  /* hide spotlight on small screens — layout too tight */
     '}'
   ].join('');
   document.head.appendChild(styleEl);
 
   /* ── Build DOM ───────────────────────────────────────────── */
-  var wrap    = document.createElement('div');    wrap.id = 'pato-wrap';
-  var bubble  = document.createElement('div');    bubble.id = 'pato-bubble';
-  var xBtn    = document.createElement('button'); xBtn.id = 'pato-x'; xBtn.textContent = '✕';
+  var overlayEl = document.createElement('div'); overlayEl.id = 'pato-overlay';
+  var spotEl    = document.createElement('div'); spotEl.id    = 'pato-spot';
+  var wrap      = document.createElement('div'); wrap.id      = 'pato-wrap';
+  var bubble    = document.createElement('div'); bubble.id    = 'pato-bubble';
+  var xBtn      = document.createElement('button'); xBtn.id   = 'pato-x'; xBtn.textContent = '✕';
   xBtn.setAttribute('aria-label', 'Cerrar tutorial');
-  var txtEl   = document.createElement('p');      txtEl.id = 'pato-txt';
-  var dotsEl  = document.createElement('div');    dotsEl.id = 'pato-dots';
-  var ctrls   = document.createElement('div');    ctrls.id = 'pato-ctrls';
-  var skipBtn = document.createElement('button'); skipBtn.id = 'pato-skip'; skipBtn.textContent = 'Saltar tour';
-  var nextBtn = document.createElement('button'); nextBtn.id = 'pato-next';
-  var imgEl   = document.createElement('img');    imgEl.id = 'pato-img'; imgEl.alt = 'Pato — guía Lyfter';
+  var txtEl     = document.createElement('p');      txtEl.id  = 'pato-txt';
+  var dotsEl    = document.createElement('div');    dotsEl.id = 'pato-dots';
+  var ctrls     = document.createElement('div');    ctrls.id  = 'pato-ctrls';
+  var skipBtn   = document.createElement('button'); skipBtn.id = 'pato-skip'; skipBtn.textContent = 'Saltar tour';
+  var nextBtn   = document.createElement('button'); nextBtn.id = 'pato-next';
+  var imgEl     = document.createElement('img');    imgEl.id  = 'pato-img'; imgEl.alt = 'Pato — guía Lyfter';
 
   ctrls.appendChild(skipBtn);
   ctrls.appendChild(nextBtn);
@@ -294,6 +355,58 @@
   bubble.appendChild(ctrls);
   wrap.appendChild(bubble);
   wrap.appendChild(imgEl);
+
+  /* ── Duck quack sound ────────────────────────────────────── */
+  function playQuack() {
+    try {
+      var audio = new Audio(base + 'pato/freesound_community-075176_duck-quack-40345.mp3');
+      audio.volume = 0.45;
+      var p = audio.play();
+      if (p && typeof p.catch === 'function') p.catch(function () {});
+    } catch (e) {}
+  }
+
+  /* ── Spotlight helpers ───────────────────────────────────── */
+  function clearSpot() {
+    if (spotRetryTimer) { clearTimeout(spotRetryTimer); spotRetryTimer = null; }
+    spotEl.classList.remove('visible');
+  }
+
+  function positionSpot(el) {
+    var pad  = 10;
+    var rect = el.getBoundingClientRect();
+    /* don't show if element is off-screen or zero-sized */
+    if (rect.width < 4 || rect.height < 4) return;
+    if (rect.bottom < 0 || rect.top > window.innerHeight) return;
+    spotEl.style.left   = (rect.left   - pad) + 'px';
+    spotEl.style.top    = (rect.top    - pad) + 'px';
+    spotEl.style.width  = (rect.width  + pad * 2) + 'px';
+    spotEl.style.height = (rect.height + pad * 2) + 'px';
+    spotEl.classList.add('visible');
+  }
+
+  function showSpot(selector, retries) {
+    clearSpot();
+    if (!selector) return;
+    var el = document.querySelector(selector);
+    if (el) {
+      /* scroll into view if mostly off screen */
+      var r = el.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > window.innerHeight) {
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+        setTimeout(function () { positionSpot(el); }, 450);
+      } else {
+        positionSpot(el);
+      }
+      return;
+    }
+    /* SPA pages render content asynchronously — retry */
+    if (retries > 0) {
+      spotRetryTimer = setTimeout(function () {
+        showSpot(selector, retries - 1);
+      }, 500);
+    }
+  }
 
   /* ── Apply a step ────────────────────────────────────────── */
   function applyStep(idx) {
@@ -307,11 +420,11 @@
     imgEl.style.opacity = '0';
     imgEl.className     = '';
     imgEl.src           = IMGS[s.duck];
-    void imgEl.offsetWidth; /* force reflow so animation re-triggers */
+    void imgEl.offsetWidth;
 
     var shown = false;
     function showDuck() {
-      if (shown) return;            /* idempotent — only the first caller wins */
+      if (shown) return;
       shown = true;
       imgEl.style.opacity = '1';
       imgEl.className = 'pato-' + s.anim;
@@ -320,8 +433,7 @@
       showDuck();
     } else {
       imgEl.onload  = showDuck;
-      imgEl.onerror = showDuck;     /* asset missing/slow → still reveal the box */
-      /* Safety net: never leave the duck invisible if neither event fires. */
+      imgEl.onerror = showDuck;
       setTimeout(showDuck, 500);
     }
 
@@ -343,6 +455,9 @@
     bubble.style.animation = 'none';
     void bubble.offsetWidth;
     bubble.style.animation = '';
+
+    /* Spotlight — up to 5 retries × 500 ms = 2.5 s window for SPA renders */
+    showSpot(s.target, 5);
   }
 
   /* ── Navigation ──────────────────────────────────────────── */
@@ -356,7 +471,6 @@
         wrap.style.opacity = '1';
       }, 200);
     } else {
-      /* Finished all steps on this page */
       try { localStorage.setItem(KEY_PAGE, '1'); } catch (e) {}
       if (pageName === FINAL_PAGE) {
         try { localStorage.setItem(KEY_DONE, '1'); } catch (e) {}
@@ -371,18 +485,21 @@
   }
 
   function destroy() {
+    clearSpot();
     nextBtn.removeEventListener('click', onNext);
     skipBtn.removeEventListener('click', onSkip);
     xBtn.removeEventListener('click',    onSkip);
     imgEl.removeEventListener('click',   onDuckClick);
-    wrap.style.opacity = '0';
+
+    [wrap, overlayEl, spotEl].forEach(function (el) { el.style.opacity = '0'; });
     setTimeout(function () {
-      if (wrap.parentNode)    wrap.parentNode.removeChild(wrap);
-      if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
-    }, 280);
+      [wrap, overlayEl, spotEl, styleEl].forEach(function (el) {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      });
+    }, 320);
   }
 
-  /* ── Event handlers (named so destroy() can remove them) ─── */
+  /* ── Event handlers ──────────────────────────────────────── */
   function onNext(e)  { e.stopPropagation(); goNext();  }
   function onSkip(e)  { e.stopPropagation(); skipAll(); }
   function onDuckClick() {
@@ -403,18 +520,18 @@
   xBtn.addEventListener('click',    onSkip);
   imgEl.addEventListener('click',   onDuckClick);
 
-  /* ── Preload all duck images ─────────────────────────────── */
+  /* ── Preload duck images ─────────────────────────────────── */
   ['pato/pato1.webp', 'pato/pato2.webp', 'pato/pato3.png'].forEach(function (f) {
-    var p = new Image();
-    p.src = base + f;
+    var p = new Image(); p.src = base + f;
   });
 
   /* ── Mount after page is fully loaded ───────────────────── */
-  /* Delay 650ms after window.load so the loading-screen 0.4s
-     fade-out finishes before Pato appears.                   */
   function mount() {
     applyStep(0);
+    document.body.appendChild(overlayEl);
+    document.body.appendChild(spotEl);
     document.body.appendChild(wrap);
+    playQuack();
   }
 
   function scheduleMount() {
