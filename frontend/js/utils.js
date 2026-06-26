@@ -669,6 +669,10 @@
               '<p class="text-xs font-semibold uppercase tracking-wider px-5 mb-2 mt-2" style="color:rgba(240,234,242,0.35);">Información</p>' +
               '<button id="drawer-about-btn" ' + dBtn + ' ' + dBtnHover + '><img src="assets/icons/ui/icono-acerca.png" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;"> <span>Acerca de la app</span></button>' +
             '</div>' +
+            '<div class="mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.07);">' +
+              '<p class="text-xs font-semibold uppercase tracking-wider px-5 mb-2 mt-2" style="color:rgba(240,234,242,0.35);">Comunidad</p>' +
+              '<button id="drawer-report-btn" ' + dBtn + ' ' + dBtnHover + '><img src="assets/icons/ui/icono-alerta.png" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;"> <span>Reportar usuario</span></button>' +
+            '</div>' +
             (userRole === 'superadmin'
               ? '<div class="mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.07);">' +
                   '<p class="text-xs font-semibold uppercase tracking-wider px-5 mb-2 mt-2" style="color:rgba(240,234,242,0.35);">Administración</p>' +
@@ -740,6 +744,10 @@
             '<p class="text-xs font-semibold uppercase tracking-wider px-5 mb-2 mt-2" style="color:rgba(240,234,242,0.35);">Información</p>' +
             '<button id="drawer-about-btn-2" ' + dBtn + ' ' + dBtnHover + '><img src="assets/icons/ui/icono-acerca.png" style="width:18px;height:18px;object-fit:contain;margin-right:4px;"> <span>Acerca de la app</span></button>' +
           '</div>' +
+          '<div class="mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.07);">' +
+            '<p class="text-xs font-semibold uppercase tracking-wider px-5 mb-2 mt-2" style="color:rgba(240,234,242,0.35);">Comunidad</p>' +
+            '<button id="drawer-report-btn-2" ' + dBtn + ' ' + dBtnHover + '><img src="assets/icons/ui/icono-alerta.png" style="width:18px;height:18px;object-fit:contain;margin-right:4px;"> <span>Reportar usuario</span></button>' +
+          '</div>' +
           (userRole === 'superadmin' ? '<div class="mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.07);">' +
             '<p class="text-xs font-semibold uppercase tracking-wider px-5 mb-2 mt-2" style="color:rgba(240,234,242,0.35);">Administración</p>' +
             '<button id="drawer-users-btn-2" ' + dBtn + ' ' + dBtnHover + '><img src="assets/icons/ui/icono-usuarios.png" style="width:18px;height:18px;object-fit:contain;margin-right:4px;"> <span>Gestionar usuarios</span></button>' +
@@ -776,6 +784,8 @@
         if (ab2b) ab2b.addEventListener('click', function() { aboutBtn && aboutBtn.click(); });
         var ub2 = document.getElementById('drawer-users-btn-2');
         if (ub2) ub2.addEventListener('click', function() { usersBtn && usersBtn.click(); });
+        var rb2 = document.getElementById('drawer-report-btn-2');
+        if (rb2) rb2.addEventListener('click', function() { closeDrawer(); setTimeout(openReportModal, 300); });
         var lb2b = document.getElementById('drawer-logout-btn-2');
         if (lb2b) lb2b.addEventListener('click', function() {
           showConfirm('¿Cerrar sesión?', function() { logout(); }, null, { confirmLabel: 'Cerrar sesión', danger: false });
@@ -784,6 +794,167 @@
         closeModal();
         showDrawer(avatarUrl, userName, onAvatarSave, isAdmin, userRole);
       });
+    }
+
+    function openReportModal() {
+      if (document.getElementById('report-modal-overlay')) return;
+      var _rpt = {ws: null, user: null, backFn: null};
+      var overlay = document.createElement('div');
+      overlay.id = 'report-modal-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeReport(); });
+      function closeReport() { overlay.remove(); }
+      function setContent(html) {
+        overlay.innerHTML = '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:20px;padding:28px 30px;max-width:460px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.5);">' + html + '</div>';
+        var xb = overlay.querySelector('[data-close]');
+        if (xb) xb.addEventListener('click', closeReport);
+        var bb = overlay.querySelector('[data-back]');
+        if (bb) bb.addEventListener('click', function() { if (_rpt.backFn) _rpt.backFn(); });
+      }
+      function modalHead(title, withBack) {
+        return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">' +
+          (withBack ? '<button data-back style="background:none;border:none;color:#8b93a3;font-size:20px;cursor:pointer;padding:0;line-height:1;">←</button>' : '') +
+          '<img src="assets/icons/ui/icono-alerta.png" style="width:20px;height:20px;object-fit:contain;" />' +
+          '<h3 style="font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#f4f6f9;margin:0;">' + esc(title) + '</h3>' +
+          '<button data-close style="margin-left:auto;background:none;border:none;color:#6f7686;font-size:22px;cursor:pointer;line-height:1;padding:0;">×</button>' +
+        '</div>';
+      }
+      function step1() {
+        _rpt.backFn = null;
+        setContent(
+          modalHead('Reportar usuario', false) +
+          '<p style="font-size:13px;color:#8b93a3;margin-bottom:18px;">Paso 1 de 3 — ¿En qué workspace ocurrió el problema?</p>' +
+          '<div id="rpt-ws-list"><p style="color:#6f7686;font-size:13px;text-align:center;padding:20px;">Cargando...</p></div>'
+        );
+        fetch(window.LyfterAPI.base + '/workspaces/mine-all', {headers: window.LyfterAPI.authHeaders()})
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(list) {
+            var el = document.getElementById('rpt-ws-list');
+            if (!el) return;
+            var arr = Array.isArray(list) ? list : [];
+            if (!arr.length) {
+              el.innerHTML = '<p style="color:#6f7686;font-size:13px;text-align:center;padding:20px;">No estás en ningún workspace.</p>';
+              return;
+            }
+            el.innerHTML = '';
+            arr.forEach(function(w) {
+              var btn = document.createElement('button');
+              btn.style.cssText = 'text-align:left;width:100%;padding:14px 16px;border-radius:12px;border:1px solid #2f343f;background:#15171d;cursor:pointer;margin-bottom:8px;transition:border-color .15s;';
+              btn.innerHTML = '<div style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;">' + esc(w.name || '') + '</div>' + (w.slug ? '<div style="font-size:12px;color:#8b93a3;margin-top:2px;">/' + esc(w.slug) + '</div>' : '');
+              btn.addEventListener('mouseover', function() { btn.style.borderColor = '#d897e7'; });
+              btn.addEventListener('mouseout', function() { btn.style.borderColor = '#2f343f'; });
+              btn.addEventListener('click', function() { _rpt.ws = {id: w.id, name: w.name}; step2(w.id); });
+              el.appendChild(btn);
+            });
+          })
+          .catch(function() {
+            var el = document.getElementById('rpt-ws-list');
+            if (el) el.innerHTML = '<p style="color:#e68a8d;font-size:13px;text-align:center;padding:20px;">Error al cargar workspaces.</p>';
+          });
+      }
+      function step2(wsId) {
+        _rpt.backFn = step1;
+        setContent(
+          modalHead('Reportar usuario', true) +
+          '<p style="font-size:13px;color:#8b93a3;margin-bottom:18px;">Paso 2 de 3 — ¿A quién querés reportar en <strong style="color:#cdd2db;">' + esc(_rpt.ws.name || '') + '</strong>?</p>' +
+          '<div id="rpt-member-list"><p style="color:#6f7686;font-size:13px;text-align:center;padding:20px;">Cargando...</p></div>'
+        );
+        var cu = window.LyfterAPI.currentUser ? window.LyfterAPI.currentUser() : null;
+        var cuId = cu ? (cu.id || cu._id || '') : '';
+        fetch(window.LyfterAPI.base + '/workspaces/' + wsId + '/reportable', {headers: window.LyfterAPI.authHeaders()})
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(members) {
+            var el = document.getElementById('rpt-member-list');
+            if (!el) return;
+            var filtered = (Array.isArray(members) ? members : []).filter(function(m) {
+              return (m.user_id || '') !== cuId && m.role !== 'god_admin';
+            });
+            if (!filtered.length) {
+              el.innerHTML = '<p style="color:#6f7686;font-size:13px;text-align:center;padding:20px;">No hay otros usuarios en este workspace.</p>';
+              return;
+            }
+            var roleColors = {admin:'#70cfff', superadmin:'#d897e7', participant:'#abd194'};
+            el.innerHTML = '';
+            filtered.forEach(function(m) {
+              var btn = document.createElement('button');
+              btn.style.cssText = 'text-align:left;width:100%;padding:12px 16px;border-radius:12px;border:1px solid #2f343f;background:#15171d;cursor:pointer;display:flex;align-items:center;gap:12px;margin-bottom:8px;transition:border-color .15s;';
+              var rc = roleColors[m.role] || '#8b93a3';
+              btn.innerHTML = '<div style="width:34px;height:34px;border-radius:50%;background:rgba(216,151,231,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="assets/icons/ui/icono-perfil.png" style="width:16px;height:16px;object-fit:contain;" /></div>' +
+                '<div><div style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;">' + esc(m.name || '—') + '</div>' +
+                '<div style="font-size:11px;color:' + rc + ';margin-top:2px;text-transform:capitalize;">' + esc(m.role || '') + '</div></div>';
+              btn.addEventListener('mouseover', function() { btn.style.borderColor = '#d897e7'; });
+              btn.addEventListener('mouseout', function() { btn.style.borderColor = '#2f343f'; });
+              btn.addEventListener('click', function() { _rpt.user = {id: m.user_id, name: m.name}; step3(); });
+              el.appendChild(btn);
+            });
+          })
+          .catch(function() {
+            var el = document.getElementById('rpt-member-list');
+            if (el) el.innerHTML = '<p style="color:#e68a8d;font-size:13px;text-align:center;padding:20px;">Error al cargar miembros. Intentá más tarde.</p>';
+          });
+      }
+      function step3() {
+        _rpt.backFn = function() { step2(_rpt.ws.id); };
+        var reasons = [
+          {value:'spam', label:'Spam o publicidad no deseada'},
+          {value:'abuso', label:'Comportamiento abusivo o acoso'},
+          {value:'contenido_inapropiado', label:'Contenido inapropiado'},
+          {value:'suplantacion', label:'Suplantación de identidad'},
+          {value:'otro', label:'Otro motivo'}
+        ];
+        setContent(
+          modalHead('Reportar usuario', true) +
+          '<p style="font-size:13px;color:#8b93a3;margin-bottom:18px;">Paso 3 de 3 — Reportando a <strong style="color:#cdd2db;">' + esc(_rpt.user.name || '') + '</strong></p>' +
+          '<p style="font-size:12px;font-weight:700;color:#8b93a3;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;">Motivo del reporte</p>' +
+          '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px;">' +
+            reasons.map(function(r) {
+              return '<label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;border:1px solid #2f343f;background:#15171d;cursor:pointer;">' +
+                '<input type="radio" name="rpt-reason" value="' + r.value + '" style="accent-color:#d897e7;width:15px;height:15px;flex-shrink:0;" />' +
+                '<span style="font-size:13px;color:#cdd2db;">' + esc(r.label) + '</span>' +
+              '</label>';
+            }).join('') +
+          '</div>' +
+          '<p style="font-size:12px;font-weight:700;color:#8b93a3;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Descripción (opcional)</p>' +
+          '<textarea id="rpt-desc" placeholder="Describe brevemente lo ocurrido..." rows="4" style="width:100%;border-radius:10px;border:1px solid #2f343f;background:#15171d;color:#f4f6f9;font-size:13px;padding:10px 12px;outline:none;resize:none;font-family:Manrope,sans-serif;box-sizing:border-box;margin-bottom:18px;display:block;"></textarea>' +
+          '<button id="rpt-submit-btn" style="width:100%;height:44px;border-radius:12px;border:1px solid rgba(230,138,141,0.4);background:linear-gradient(180deg,rgba(236,151,153,0.15),rgba(230,138,141,0.1));color:#ec9799;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Enviar reporte</button>'
+        );
+        var submitBtn = document.getElementById('rpt-submit-btn');
+        if (submitBtn) {
+          submitBtn.addEventListener('click', function() {
+            var radio = document.querySelector('input[name="rpt-reason"]:checked');
+            if (!radio) { toast('Seleccioná un motivo para el reporte', 'error'); return; }
+            var reason = radio.value;
+            var desc = (document.getElementById('rpt-desc') || {}).value || '';
+            submitBtn.disabled = true; submitBtn.textContent = 'Enviando...'; submitBtn.style.opacity = '0.6';
+            fetch(window.LyfterAPI.base + '/reports/', {
+              method: 'POST',
+              headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
+              body: JSON.stringify({reported_user_id: _rpt.user.id, reason: reason, description: desc})
+            })
+            .then(function(r) { return r.ok ? r.json() : r.json().then(function(d) { throw new Error(d.error || d.message || 'Error'); }); })
+            .then(function() {
+              setContent(
+                '<div style="text-align:center;padding:32px 20px;">' +
+                  '<div style="width:60px;height:60px;border-radius:50%;background:rgba(171,209,148,0.15);border:1px solid rgba(171,209,148,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">' +
+                    '<img src="assets/icons/ui/icono-reclamado.png" style="width:28px;height:28px;object-fit:contain;" />' +
+                  '</div>' +
+                  '<h3 style="font-family:Poppins,sans-serif;font-size:18px;font-weight:700;color:#f4f6f9;margin-bottom:8px;">Reporte enviado</h3>' +
+                  '<p style="font-size:13px;color:#8b93a3;margin-bottom:24px;line-height:1.6;">Tu reporte fue enviado correctamente. El equipo de Lyfter lo revisará pronto.</p>' +
+                  '<button id="rpt-done-btn" style="padding:12px 32px;border-radius:12px;border:1px solid #2f343f;background:#15171d;color:#cdd2db;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Cerrar</button>' +
+                '</div>'
+              );
+              var doneBtn = document.getElementById('rpt-done-btn');
+              if (doneBtn) doneBtn.addEventListener('click', closeReport);
+            })
+            .catch(function(err) {
+              submitBtn.disabled = false; submitBtn.textContent = 'Enviar reporte'; submitBtn.style.opacity = '1';
+              toast((err && err.message) || 'Error al enviar el reporte', 'error');
+            });
+          });
+        }
+      }
+      step1();
     }
 
     document.getElementById('drawer-close').addEventListener('click', closeDrawer);
@@ -1134,6 +1305,14 @@
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function() {
         showConfirm('¿Cerrar sesión?', function() { logout(); }, null, { confirmLabel: 'Cerrar sesión', danger: false });
+      });
+    }
+
+    var reportBtn = document.getElementById('drawer-report-btn');
+    if (reportBtn) {
+      reportBtn.addEventListener('click', function() {
+        closeDrawer();
+        setTimeout(openReportModal, 300);
       });
     }
 
