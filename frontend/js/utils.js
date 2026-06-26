@@ -520,6 +520,7 @@
     '</div>';
   }
   function hideLoading() {
+    if (window._loadingTipsIv) { clearInterval(window._loadingTipsIv); window._loadingTipsIv = null; }
     var ls = document.getElementById('loading-screen');
     if (!ls) return;
     ls.style.opacity = '0';
@@ -1854,4 +1855,50 @@
       btn.style.color       = active ? '#d897e7' : '#8b93a3';
     });
   };
+
+  /* ── Loading screen tips ──────────────────────────────────────
+     Injected once into #loading-screen on every page that has it.
+     Rotates every 3.5 s with a fade; cleared by hideLoading().
+  ─────────────────────────────────────────────────────────────── */
+  (function() {
+    var ls = document.getElementById('loading-screen');
+    if (!ls) return;
+
+    var TIPS = [
+      'Escaneá el QR de un evento para unirte y empezar a ganar badges',
+      'Completá todos los badges de un evento y desbloqueá el premio sorpresa',
+      'Los badges raros dan más XP que los comunes — ¡salí a buscarlos!',
+      'Tu posición en el leaderboard sube con cada badge que conseguís',
+      'Guardá eventos para unirte a ellos cuando quieras',
+      'Desbloqueá logros especiales completando desafíos en tu perfil',
+      'Invitá amigos a eventos y compitan juntos en el leaderboard',
+      'Cambiá el idioma de la app desde el menú de tu cuenta',
+      'Reportá comportamientos inapropiados desde el menú de cuenta',
+    ];
+
+    var idx = Math.floor(Math.random() * TIPS.length);
+
+    var wrap = document.createElement('div');
+    wrap.id = 'loading-tip';
+    wrap.innerHTML =
+      '<div id="loading-tip-card">' +
+        '<span id="loading-tip-label">Tip</span>' +
+        '<p id="loading-tip-text">' + TIPS[idx] + '</p>' +
+      '</div>';
+    ls.appendChild(wrap);
+
+    var card = wrap.querySelector('#loading-tip-card');
+    var text = wrap.querySelector('#loading-tip-text');
+
+    window._loadingTipsIv = setInterval(function() {
+      if (!card || !text) return;
+      card.style.opacity = '0';
+      setTimeout(function() {
+        idx = (idx + 1) % TIPS.length;
+        if (text) text.textContent = TIPS[idx];
+        if (card) card.style.opacity = '1';
+      }, 350);
+    }, 3500);
+  }());
+
 })();
