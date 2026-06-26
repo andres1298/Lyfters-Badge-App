@@ -858,6 +858,9 @@ body {
   }
 }
 
+/* ── Drawer fix: don't hide behind bottom nav ── */
+#drawer-panel { padding-bottom: 80px !important; }
+
 /* ── Lyfter bottom nav ── */
 .lyfter-bottom-nav {
   position: fixed;
