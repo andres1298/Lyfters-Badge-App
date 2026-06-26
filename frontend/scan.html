@@ -291,7 +291,7 @@
           if (r.xp && r.xp.gained > 0) {
             U.showXpGain(r.xp.gained, { levelUp: r.xp.levelUp, level: r.xp.level });
           }
-          showCelebration(r);
+          showCelebration(r, activeId);
         } catch (err) {
           processing = false;
           if (err.status === 'not_joined') {
@@ -390,7 +390,7 @@
         requestAnimationFrame(frame);
       }
 
-      function showCelebration(r) {
+      function showCelebration(r, activeId) {
         scanning = false;
         stopCamera();
         window._scanDone = true;
@@ -401,7 +401,7 @@
 
         window._celebrateData = {
           complete: r.complete,
-          eventId: r.event_id || (r.badge && r.badge.event_id) || '',
+          eventId: activeId || '',
           eventName: r.event_name || ''
         };
         var badge  = r.badge || {};
