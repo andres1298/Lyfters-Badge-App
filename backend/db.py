@@ -59,6 +59,7 @@ def workspaces():        return get_db()["workspaces"]
 def workspace_members(): return get_db()["workspace_members"]
 def invitations():       return get_db()["invitations"]
 def reviews():           return get_db()["reviews"]
+def saved_events():      return get_db()["saved_events"]
 def ip_bans():           return get_db()["ip_bans"]
 def reports():           return get_db()["reports"]
 

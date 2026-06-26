@@ -32,9 +32,8 @@
       U.hideLoading();
 
       var allEvents = profile.events || [];
-      var savedIds = JSON.parse(localStorage.getItem('saved_events') || '[]');
-
-      var saved = allEvents.filter(function(ev){ return savedIds.indexOf(ev.id) > -1; });
+      var savedRes = await fetch(API.base + '/events/saved', { headers: API.authHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
+      var saved = savedRes || [];
       var participating = allEvents.filter(function(ev){ return ev.status === 'ongoing' && (ev.obtained||0) > 0; });
       var completed = allEvents.filter(function(ev){ return ev.status === 'finished' || (ev.obtained > 0 && ev.total > 0 && ev.obtained >= ev.total); });
 

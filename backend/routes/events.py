@@ -6,7 +6,7 @@ from bson import ObjectId
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
 
-from db import users, events, badges, scans, event_joins, user_achievements, workspaces, reviews
+from db import users, events, badges, scans, event_joins, user_achievements, workspaces, reviews, saved_events
 from utils import valid_oid, fmt_event, fmt_badge, compute_event_status, haversine
 from services.xp import compute_level, level_name
 
@@ -410,3 +410,50 @@ def delete_review(review_id):
     if result.deleted_count == 0:
         return jsonify(error="Reseña no encontrada"), 404
     return jsonify(message="Reseña eliminada"), 200
+
+
+@events_bp.route("/<event_id>/save", methods=["POST"])
+@jwt_required()
+def save_event(event_id):
+    user_oid = ObjectId(get_jwt_identity())
+    try:
+        oid = ObjectId(event_id)
+    except Exception:
+        return jsonify(error="ID inválido"), 400
+
+    existing = saved_events().find_one({"user_id": user_oid, "event_id": oid})
+    if existing:
+        saved_events().delete_one({"_id": existing["_id"]})
+        return jsonify(saved=False, message="Evento eliminado de guardados"), 200
+
+    saved_events().insert_one({
+        "user_id": user_oid,
+        "event_id": oid,
+        "saved_at": datetime.now(timezone.utc)
+    })
+    return jsonify(saved=True, message="Evento guardado"), 200
+
+
+@events_bp.route("/<event_id>/save/status", methods=["GET"])
+@jwt_required()
+def save_status(event_id):
+    user_oid = ObjectId(get_jwt_identity())
+    try:
+        oid = ObjectId(event_id)
+    except Exception:
+        return jsonify(saved=False), 200
+    existing = saved_events().find_one({"user_id": user_oid, "event_id": oid})
+    return jsonify(saved=bool(existing)), 200
+
+
+@events_bp.route("/saved", methods=["GET"])
+@jwt_required()
+def get_saved_events():
+    user_oid = ObjectId(get_jwt_identity())
+    saves = list(saved_events().find({"user_id": user_oid}))
+    result = []
+    for s in saves:
+        ev = events().find_one({"_id": s["event_id"]})
+        if ev:
+            result.append(fmt_event(ev))
+    return jsonify(result), 200
