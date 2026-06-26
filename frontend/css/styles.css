@@ -1029,3 +1029,7 @@ body {
   width: 5px; height: 5px; border-radius: 50%;
   background: #d897e7; margin-top: 2px;
 }
+.lyfter-nav-item.active .nav-evento-icon {
+  opacity: 1 !important;
+  filter: brightness(0) saturate(100%) invert(70%) sepia(50%) saturate(500%) hue-rotate(220deg);
+}
