@@ -164,6 +164,7 @@ def register():
         "password_hash": pw_hash,
         "role":          "participant",
         "created_at":    datetime.utcnow(),
+        "last_ip":       (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip(),
     })
 
     new_user_id = result.inserted_id
@@ -373,7 +374,11 @@ def login():
         return ban_resp
 
     if client_ip:
-        users().update_one({"_id": user["_id"]}, {"$set": {"last_login_ip": client_ip}})
+        users().update_one({"_id": user["_id"]}, {"$set": {
+            "last_login_ip": client_ip,
+            "last_ip":       client_ip,
+            "ip_address":    client_ip,
+        }})
 
     token = create_access_token(
         identity=str(user["_id"]),
@@ -389,6 +394,18 @@ def google_login():
     Verifica el token con Google, busca o crea el usuario en MongoDB,
     y devuelve un JWT propio igual que /auth/login.
     """
+    # Check IP ban — igual que login()
+    client_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+    if client_ip:
+        now_dt = datetime.utcnow()
+        ip_ban_doc = ip_bans().find_one({"ip": client_ip, "expires_at": {"$gt": now_dt}})
+        if ip_ban_doc:
+            return jsonify(
+                error="IP_BANNED",
+                message="Acceso bloqueado desde esta red. Tu dirección IP ha sido suspendida.",
+                error_code="ip_banned"
+            ), 403
+
     data = request.get_json() or {}
     firebase_token = (data.get("idToken") or "").strip()
 
@@ -427,6 +444,7 @@ def google_login():
             "provider":      "google",
             "avatar":        photo,
             "created_at":    datetime.utcnow(),
+            "last_ip":       client_ip,
         })
         user = users().find_one({"_id": result.inserted_id})
     else:
@@ -435,6 +453,12 @@ def google_login():
         if photo:
             updates["avatar"] = photo
         users().update_one({"_id": user["_id"]}, {"$set": updates})
+        if client_ip:
+            users().update_one({"_id": user["_id"]}, {"$set": {
+                "last_ip":       client_ip,
+                "last_login_ip": client_ip,
+                "ip_address":    client_ip,
+            }})
         user = users().find_one({"_id": user["_id"]})
 
     # Check account ban (antes de generar el token)
