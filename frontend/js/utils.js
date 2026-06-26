@@ -623,15 +623,6 @@
       : '<div class="w-16 h-16 rounded-full flex items-center justify-center" style="background:rgba(216,151,231,0.15);"><img src="assets/icons/ui/icono-perfil.png" alt="perfil" style="width:32px;height:32px;object-fit:contain;vertical-align:middle;" /></div>';
     var dBtn = 'style="background:transparent;border:none;width:100%;display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1.25rem;font-size:0.875rem;color:rgba(240,234,242,0.75);text-align:left;cursor:pointer;transition:background 0.15s;"';
     var dBtnHover = 'onmouseover="this.style.background=\'rgba(255,255,255,0.04)\'" onmouseout="this.style.background=\'transparent\'"';
-    var _curFs; try { _curFs = localStorage.getItem('lyfter_font_size') || 'medium'; } catch(e) { _curFs = 'medium'; }
-    function _fsbtn(s, lbl) {
-      var a = _curFs === s;
-      return '<button id="font-btn-' + s + '" onclick="window.setFontSize(\'' + s + '\')" ' +
-        'style="flex:1;height:32px;border-radius:8px;border:1px solid ' + (a ? '#d897e7' : '#2f343f') + ';' +
-        'background:' + (a ? 'rgba(216,151,231,0.15)' : 'transparent') + ';' +
-        'color:' + (a ? '#d897e7' : '#8b93a3') + ';font-family:Manrope,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">' + lbl + '</button>';
-    }
-
     root.innerHTML =
       '<div id="drawer-overlay" class="fixed inset-0 z-50 flex justify-end" style="background:rgba(0,0,0,0.55);">' +
         '<div id="drawer-panel" class="h-full w-72 flex flex-col" style="background:#1c1f27;border-left:1px solid rgba(255,255,255,0.07);box-shadow:-8px 0 32px rgba(0,0,0,0.4);transform:translateX(100%);transition:transform 0.25s ease;">' +
@@ -658,12 +649,6 @@
             '<div class="mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.07);">' +
               '<p class="text-xs font-semibold uppercase tracking-wider px-5 mb-2 mt-2" style="color:rgba(240,234,242,0.35);">Apariencia</p>' +
               '<button id="drawer-lang-btn" ' + dBtn + ' ' + dBtnHover + '><img src="assets/icons/ui/icono-traduccion.png" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;"> <span>Idioma</span></button>' +
-              '<div style="padding:4px 20px 12px;">' +
-                '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin:6px 0 8px;letter-spacing:.06em;text-transform:uppercase;">Tamaño de texto</div>' +
-                '<div style="display:flex;gap:8px;">' +
-                  _fsbtn('small','Pequeño') + _fsbtn('medium','Mediano') + _fsbtn('large','Grande') +
-                '</div>' +
-              '</div>' +
             '</div>' +
             '<div class="mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.07);">' +
               '<p class="text-xs font-semibold uppercase tracking-wider px-5 mb-2 mt-2" style="color:rgba(240,234,242,0.35);">Información</p>' +
@@ -683,7 +668,7 @@
                   '<span style="font-family:Poppins,sans-serif;font-size:12px;font-weight:700;color:#cdd2db;">Unirse a un workspace</span>' +
                 '</div>' +
                 '<p style="font-size:11px;color:#6f7686;line-height:1.5;margin-bottom:10px;">Si tu organización te envió un código de invitación, ingrésalo aquí.</p>' +
-                '<div style="display:flex;gap:6px;">' +
+                '<div style="display:flex;gap:6px;align-items:center;">' +
                   '<input id="drawer-ws-code" type="text" maxlength="8" placeholder="ABC12345" ' +
                     'style="flex:1;height:34px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-size:12px;padding:0 10px;outline:none;letter-spacing:.1em;text-transform:uppercase;" ' +
                     'oninput="this.value=this.value.replace(/[^a-zA-Z0-9]/g,\'\').toUpperCase().slice(0,8)" />' +
@@ -752,7 +737,7 @@
                 '<span style="font-family:Poppins,sans-serif;font-size:12px;font-weight:700;color:#cdd2db;">Unirse a un workspace</span>' +
               '</div>' +
               '<p style="font-size:11px;color:#6f7686;line-height:1.5;margin-bottom:10px;">Si tu organización te envió un código de invitación, ingrésalo aquí.</p>' +
-              '<div style="display:flex;gap:6px;">' +
+              '<div style="display:flex;gap:6px;align-items:center;">' +
                 '<input id="drawer-ws-code-2" type="text" maxlength="8" placeholder="ABC12345" ' +
                   'style="flex:1;height:34px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-size:12px;padding:0 10px;outline:none;letter-spacing:.1em;text-transform:uppercase;" ' +
                   'oninput="this.value=this.value.replace(/[^a-zA-Z0-9]/g,\'\').toUpperCase().slice(0,8)" />' +
