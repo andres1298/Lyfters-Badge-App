@@ -381,6 +381,7 @@ def get_reviews(event_id):
     for r in event_reviews:
         user_doc = users().find_one({"_id": r["user_id"]}, {"name": 1})
         result.append({
+            "id": str(r["_id"]),
             "user_name": user_doc.get("name", "Usuario") if user_doc else "Usuario",
             "rating": r.get("rating", 0),
             "recommend": r.get("recommend"),
@@ -392,3 +393,20 @@ def get_reviews(event_id):
     avg_rating = round(sum(r["rating"] for r in result) / len(result), 1) if result else 0
 
     return jsonify(reviews=result, total=len(result), avg_rating=avg_rating), 200
+
+
+@events_bp.route("/reviews/<review_id>", methods=["DELETE"])
+@jwt_required()
+def delete_review(review_id):
+    claims = get_jwt()
+    if claims.get("role") not in ("admin", "superadmin", "god_admin"):
+        return jsonify(error="Sin permisos"), 403
+    try:
+        oid = ObjectId(review_id)
+    except Exception:
+        return jsonify(error="ID inválido"), 400
+
+    result = reviews().delete_one({"_id": oid})
+    if result.deleted_count == 0:
+        return jsonify(error="Reseña no encontrada"), 404
+    return jsonify(message="Reseña eliminada"), 200
