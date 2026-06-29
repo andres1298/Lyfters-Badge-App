@@ -46,8 +46,7 @@ _env_origins = [
     ).split(",") if o.strip()
 ]
 _cors_origins = _env_origins + [
-    "https://lyfters-badge-app.vercel.app",
-    "https://lyfters-badge-psgwxf1jw-lyfter-s-projects2.vercel.app",
+    "https://andres1298.github.io",
 ]
 CORS(app, origins=_cors_origins, supports_credentials=True,
      allow_headers=["Content-Type", "Authorization", "X-Workspace-Id"],
@@ -77,7 +76,7 @@ init_security(app)
 
 @app.route("/", methods=["GET"])
 def index():
-    return redirect("https://liangso420-cell.github.io/Lyfters-Badge-App/", code=302)
+    return redirect("https://andres1298.github.io/Lyfters-Badge-App/", code=302)
 
 
 # ──────────────────────────────────────────────
