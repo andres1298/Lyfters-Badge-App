@@ -23,7 +23,7 @@
 
 window.LYFTER_CONFIG = {
   mode: 'backend',
-  apiBaseUrl: 'https://lyfters-badge-app.onrender.com',
+  apiBaseUrl: 'https://lyfters-badge-app-d6rn.onrender.com',
 };
 
 // Firebase config — API Key restringida por HTTP referrer en Google Cloud Console
