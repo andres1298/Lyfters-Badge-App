@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iniciar sesión — Lyfter Badge App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>emailjs.init('mPuA_uCE-0FS1U3Tm');</script>
+</head>
+<body>
+  <div id="loading-screen">
+    <img src="assets/icons/ui/logo-lyfter.jpeg" alt="Lyfter" />
+    <div class="loader"></div>
+    <span>Cargando...</span>
+  <div id="server-wakeup-notice" style="display:none;margin-top:16px;font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;text-align:center;max-width:240px;">
+    <img src="assets/icons/ui/reloj-de-arena.png" style="width:32px;height:32px;object-fit:contain;display:block;margin:0 auto 6px;opacity:0.7;" />
+    El servidor está despertando...<br>Esto puede tardar hasta 1 minuto.
+  </div>
+  </div>
+  <div class="fixed top-4 right-4 z-50">
+    <select id="lang-selector" class="px-3 py-1\.5 text-xs rounded-btn outline-none cursor-pointer" style="background:#1c1f27;border:1px solid rgba(255,255,255,0.1);color:rgba(240,234,242,0.7);">
+      <option value="es">ES</option>
+      <option value="en">EN</option>
+    </select>
+  </div>
+  <main id="app"></main>
+  <div id="modal-root"></div>
+  <div id="toast-root" class="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var API = window.LyfterAPI;
+      var U = window.LyfterUtils;
+
+      var langSel = document.getElementById('lang-selector');
+      try { langSel.value = localStorage.getItem('lyfter_lang') || 'es'; } catch(e) {}
+      langSel.addEventListener('change', function() {
+        U.setLang(langSel.value);
+        location.reload();
+      });
+
+      var _nextRaw = new URLSearchParams(window.location.search).get('next') || '';
+      var nextUrl = '';
+      if (_nextRaw && /^\/[^\/]/.test(_nextRaw)) {
+        try {
+          var _np = new URL(_nextRaw, window.location.origin);
+          var _appBase = window.location.pathname.replace(/\/[^\/]+$/, '/');
+          if (_np.origin === window.location.origin && _np.pathname.startsWith(_appBase)) {
+            nextUrl = _nextRaw;
+          }
+        } catch (_e) {}
+      }
+
+      var user = API.currentUser();
+      var _adminRoles = ['admin','superadmin','god_admin'];
+      if (user) { window.location.replace(nextUrl || (_adminRoles.indexOf(user.role) !== -1 ? 'workspace-select.html' : 'inicio.html')); return; }
+
+      var app = document.getElementById('app');
+
+      // Si llegamos con datos de ban en la URL (sesión activa expulsada por
+      // api.js), mostramos el disclaimer de cuenta suspendida directamente.
+      var _banParams = new URLSearchParams(window.location.search);
+      if (_banParams.get('banned') === '1') {
+        showBanScreen({
+          reason:    _banParams.get('ban_reason') || '',
+          until:     _banParams.get('ban_until') || null,
+          permanent: _banParams.get('ban_permanent') === '1'
+        });
+        return;
+      }
+
+      U.showPendingToast();
+
+      var demoHint = API.mode === 'mock'
+        ? '<p class="text-center text-xs text-gray-300 pt-2">Demo · admin@lyfter.cc / admin123 · ana@correo.com / ana123</p>'
+        : '';
+
+      app.innerHTML =
+        '<div style="position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(60% 60% at 20% 20%,rgba(216,151,231,0.22),transparent 70%),radial-gradient(55% 55% at 82% 18%,rgba(112,207,255,0.18),transparent 70%),radial-gradient(50% 55% at 80% 88%,rgba(255,203,138,0.16),transparent 70%),radial-gradient(55% 55% at 10% 82%,rgba(171,209,148,0.16),transparent 70%),radial-gradient(50% 50% at 50% 50%,rgba(230,138,141,0.10),transparent 70%);"></div>' +
+        '<div style="position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;">' +
+          '<div style="width:100%;max-width:1100px;background:#1c1f27;border:1px solid #2f343f;border-radius:26px;padding:28px 32px 36px;box-shadow:0 40px 100px rgba(0,0,0,0.55);display:flex;gap:48px;align-items:stretch;">' +
+
+            '<div id="login-deco" style="width:380px;flex-shrink:0;border-radius:20px;overflow:hidden;position:relative;min-height:460px;background:radial-gradient(80% 60% at 22% 16%,rgba(112,207,255,0.45),transparent 60%),radial-gradient(75% 60% at 84% 26%,rgba(216,151,231,0.5),transparent 60%),radial-gradient(80% 70% at 80% 90%,rgba(255,203,138,0.4),transparent 62%),radial-gradient(80% 70% at 14% 92%,rgba(171,209,148,0.4),transparent 62%),radial-gradient(70% 60% at 52% 56%,rgba(230,138,141,0.34),transparent 62%),linear-gradient(158deg,#232732,#1a1d25);display:none;">' +
+              '<span style="position:absolute;top:8%;left:12%;font-family:JetBrains Mono,monospace;font-size:30px;font-weight:600;color:rgba(255,255,255,0.28);">&lt;/&gt;</span>' +
+              '<span style="position:absolute;top:18%;right:14%;font-family:JetBrains Mono,monospace;font-size:22px;color:rgba(255,255,255,0.22);">$_</span>' +
+              '<span style="position:absolute;top:34%;left:18%;font-family:JetBrains Mono,monospace;font-size:26px;color:rgba(255,203,138,0.45);">{ }</span>' +
+              '<span style="position:absolute;top:44%;right:18%;font-family:JetBrains Mono,monospace;font-size:34px;color:rgba(112,207,255,0.4);">;</span>' +
+              '<span style="position:absolute;top:58%;left:24%;font-family:JetBrains Mono,monospace;font-size:24px;color:rgba(216,151,231,0.42);">=&gt;</span>' +
+              '<span style="position:absolute;top:70%;right:22%;font-family:JetBrains Mono,monospace;font-size:20px;font-weight:600;color:rgba(171,209,148,0.5);">JS</span>' +
+              '<span style="position:absolute;top:80%;left:16%;font-family:JetBrains Mono,monospace;font-size:22px;font-weight:600;color:rgba(230,138,141,0.5);">TS</span>' +
+              '<div style="position:absolute;left:0;right:0;bottom:0;padding:26px 28px;background:linear-gradient(180deg,transparent,rgba(20,22,28,0.55));">' +
+                '<div style="font-family:Poppins,sans-serif;font-size:18px;font-weight:600;color:#fff;line-height:1.35;">Gestioná eventos,<br><span style="color:#d897e7;">badges y rankings</span></div>' +
+                '<div style="font-family:Manrope,sans-serif;font-size:13px;color:rgba(255,255,255,0.6);margin-top:6px;">Tu plataforma de reconocimiento · Lyfter</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div style="flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;">' +
+              '<a href="landing.html" style="display:inline-flex;align-items:center;gap:6px;font-family:Manrope,sans-serif;font-size:13px;font-weight:600;color:#8b93a3;text-decoration:none;margin-bottom:20px;padding:6px 10px;border-radius:8px;transition:color .15s;border:1px solid transparent;" onmouseover="this.style.color=\'#d897e7\';this.style.borderColor=\'rgba(216,151,231,0.25)\'" onmouseout="this.style.color=\'#8b93a3\';this.style.borderColor=\'transparent\'">← Volver al inicio</a>' +
+              '<div style="text-align:center;margin-bottom:24px;">' +
+                '<img src="assets/icons/ui/logo-lyfter.jpeg" alt="Lyfter" style="width:80px;height:80px;object-fit:contain;border-radius:16px;margin:0 auto 12px;display:block;" />' +
+                '<h2 style="margin:0;font-family:Poppins,sans-serif;font-size:20px;font-weight:700;color:#f4f6f9;">Lyfter Badge App</h2>' +
+                '<p style="margin:4px 0 0;font-size:13px;color:#8b93a3;font-family:Manrope,sans-serif;">' + U.t('app_tagline') + '</p>' +
+              '</div>' +
+              '<h1 style="margin:0;font-family:Poppins,sans-serif;font-size:36px;font-weight:700;color:#f4f6f9;letter-spacing:-0.01em;">Iniciar sesión</h1>' +
+              '<p style="margin:10px 0 32px;font-size:15px;color:#8b93a3;font-family:Manrope,sans-serif;">' + U.t('no_account') + ' <a href="register.html" style="font-weight:700;text-decoration:none;color:#d897e7;">' + U.t('sign_up') + '</a></p>' +
+              '<form id="login-form" style="display:flex;flex-direction:column;gap:18px;" novalidate>' +
+                U.inputField({ label: U.t('email_label'), type: 'email', name: 'email', placeholder: 'tu@correo.com' }) +
+                U.inputField({ label: U.t('password_label'), type: 'password', name: 'password', placeholder: '••••••••' }) +
+                U.primaryButton(U.t('enter_btn'), 'type="submit"') +
+                '<div style="display:flex;align-items:center;gap:12px;margin:4px 0;">' +
+                  '<div style="flex:1;height:1px;background:#2f343f;"></div>' +
+                  '<span style="font-size:12px;color:#6f7686;font-family:Manrope,sans-serif;">' + U.t('or_continue') + '</span>' +
+                  '<div style="flex:1;height:1px;background:#2f343f;"></div>' +
+                '</div>' +
+                '<button type="button" id="btn-google" style="width:100%;height:52px;border-radius:13px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">' +
+                  '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px;height:20px;" alt="Google" />' +
+                  U.t('continue_google') +
+                '</button>' +
+                '<p style="text-align:center;font-size:13px;color:#8b93a3;margin:0;font-family:Manrope,sans-serif;">' +
+                  '<button type="button" id="forgot-pw-btn" style="background:none;border:none;color:#6f7686;font-size:13px;cursor:pointer;font-family:Manrope,sans-serif;text-decoration:underline;">' + U.t('forgot_password') + '</button>' +
+                '</p>' +
+                demoHint +
+              '</form>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      // Mostrar panel deco en desktop
+      (function() {
+        var d = document.getElementById('login-deco');
+        if (d && window.innerWidth >= 900) { d.style.display = 'block'; }
+      })();
+      function loginSuccessAnimation(cb) {
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(21,23,29,0.75);backdrop-filter:blur(4px);';
+        var circle = document.createElement('div');
+        circle.style.cssText = 'width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#16a34a);display:flex;align-items:center;justify-content:center;transform:scale(0);transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);box-shadow:0 0 40px rgba(34,197,94,0.5);';
+        circle.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        overlay.appendChild(circle);
+        document.body.appendChild(overlay);
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            circle.style.transform = 'scale(1)';
+            setTimeout(function() {
+              document.body.removeChild(overlay);
+              cb();
+            }, 700);
+          });
+        });
+      }
+
+      var form = document.getElementById('login-form');
+      (function() {
+        var inp = form.elements['password'];
+        if (!inp) return;
+        var wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:relative;';
+        inp.parentNode.insertBefore(wrapper, inp);
+        wrapper.appendChild(inp);
+        inp.style.paddingRight = '44px';
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.tabIndex = -1;
+        btn.style.cssText = 'position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;line-height:0;color:#8b93a3;';
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+        btn.onclick = function() {
+          if (inp.type === 'password') { inp.type = 'text'; btn.style.color = '#d897e7'; }
+          else { inp.type = 'password'; btn.style.color = '#8b93a3'; }
+        };
+        wrapper.appendChild(btn);
+      })();
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var email = form.email, pass = form.password, ok = true;
+        ok = U.setFieldError(email, U.EMAIL_RE.test(email.value.trim()) ? '' : 'Email no válido') && ok;
+        ok = U.setFieldError(pass, pass.value ? '' : 'Ingresa tu contraseña') && ok;
+        if (!ok) return;
+        var btn = form.querySelector('[type="submit"]');
+        btn.disabled = true;
+        btn.textContent = U.t('loading');
+        try {
+          var loggedUser = await API.login(email.value.trim(), pass.value);
+          U.toastNextPage(U.t('welcome'), 'success');
+          var _ar = ['admin','superadmin','god_admin'];
+          var destino = nextUrl || (_ar.indexOf(loggedUser.role) !== -1 ? 'workspace-select.html' : 'inicio.html');
+          loginSuccessAnimation(function() { window.location.href = destino; });
+        } catch (err) {
+          // IP baneada
+          if (err && err.code === 'IP_BANNED') {
+            U.toast('Tu acceso ha sido bloqueado desde esta red. Contactá al soporte.', 'error');
+            return;
+          }
+          // Cuenta baneada → pantalla de cuenta suspendida.
+          if (err && err.code === 'cuenta_baneada') { showBanScreen(err.ban || {}); return; }
+          // Si la cuenta no existe, mensaje específico; si no, credenciales incorrectas.
+          U.toast(err && err.code === 'no_account' ? 'No tenemos una cuenta con ese email' : 'Correo o contraseña incorrectos', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = U.t('enter_btn');
+        }
+      });
+
+      // ── Pantalla de cuenta suspendida (ban) ──────────────
+      // Se muestra tanto al intentar loguear una cuenta baneada (email o Google)
+      // como al ser expulsado de una sesión activa (redirigido desde api.js).
+      function showBanScreen(ban) {
+        ban = ban || {};
+        var reason = (ban.reason && String(ban.reason).trim()) ? String(ban.reason).trim() : 'Sin razón especificada';
+        var duration;
+        if (ban.permanent) {
+          duration = 'Permanente';
+        } else if (ban.until) {
+          var d = new Date(ban.until);
+          duration = isNaN(d.getTime())
+            ? 'Temporal'
+            : ('Hasta el ' + d.toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+        } else {
+          duration = 'Temporal';
+        }
+        app.innerHTML =
+          '<div style="position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(60% 60% at 50% 30%,rgba(230,138,141,0.18),transparent 70%);"></div>' +
+          '<div style="position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;">' +
+            '<div style="width:100%;max-width:440px;background:#1c1f27;border:1px solid #3a2a2e;border-radius:22px;padding:36px 32px;box-shadow:0 40px 100px rgba(0,0,0,0.55);text-align:center;">' +
+              '<div style="width:72px;height:72px;border-radius:50%;background:rgba(230,138,141,0.15);border:1px solid rgba(230,138,141,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:34px;">🚫</div>' +
+              '<h1 style="margin:0 0 8px;font-family:Poppins,sans-serif;font-size:26px;font-weight:700;color:#f4f6f9;">Cuenta suspendida</h1>' +
+              '<p style="margin:0 0 24px;font-size:14px;color:#8b93a3;font-family:Manrope,sans-serif;">Tu cuenta no puede acceder a la plataforma.</p>' +
+              '<div style="text-align:left;background:#23262f;border:1px solid #2f343f;border-radius:14px;padding:16px 18px;margin-bottom:24px;">' +
+                '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6f7686;font-family:Manrope,sans-serif;margin-bottom:4px;">Razón</div>' +
+                '<div style="font-size:14px;color:#f0eaf2;font-family:Manrope,sans-serif;margin-bottom:14px;word-break:break-word;">' + U.esc(reason) + '</div>' +
+                '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6f7686;font-family:Manrope,sans-serif;margin-bottom:4px;">Duración</div>' +
+                '<div style="font-size:14px;color:#e68a8d;font-family:Manrope,sans-serif;font-weight:600;">' + U.esc(duration) + '</div>' +
+              '</div>' +
+              '<button id="ban-back" style="width:100%;height:50px;border-radius:13px;border:none;background:#e68a8d;color:#1c1f27;font-family:Manrope,sans-serif;font-size:15px;font-weight:700;cursor:pointer;">Volver</button>' +
+            '</div>' +
+          '</div>';
+        document.getElementById('ban-back').addEventListener('click', function() {
+          window.location.href = 'login.html';
+        });
+      }
+
+      // ── Onboarding de intereses (idéntico al de register.html) ──
+      // Solo se dispara para usuarios NUEVOS que entran por Google desde esta pantalla.
+      var TAGS = ['Desarrollo Web','Mobile','Inteligencia Artificial','Data Science','Ciberseguridad',
+        'DevOps','Cloud','Blockchain','UX/UI','Product Management','Emprendimiento','Marketing Digital',
+        'Diseño','Videojuegos','Robótica','Fintech','Educación Tech','Open Source','Backend','Frontend'];
+
+      function showInterestsStep() {
+        var selected = [];
+        app.innerHTML =
+          '<section class="device-frame px-4 pt-12 pb-12">' +
+            '<div class="card-soft p-8 anim-fade">' +
+              '<div class="text-center mb-6">' +
+                '<div class="text-4xl mb-2">🎯</div>' +
+                '<h2 class="text-xl font-bold">' + U.t('interests_title') + '</h2>' +
+                '<p class="text-gray-400 text-sm mt-1">' + U.t('interests_desc') + '</p>' +
+              '</div>' +
+              '<div id="tags-container" class="flex flex-wrap gap-2 mb-6">' +
+                TAGS.map(function(tag) {
+                  return '<button type="button" data-tag="' + U.esc(tag) + '" class="tag-btn px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:border-primary hover:text-primary transition">' + U.esc(tag) + '</button>';
+                }).join('') +
+              '</div>' +
+              '<button id="save-interests" class="w-full py-3 rounded-btn text-white font-semibold mb-3" style="background:#6C63FF;">' + U.t('save_continue') + '</button>' +
+              '<button id="skip-interests" class="w-full py-2 text-sm text-gray-400 hover:text-primary">' + U.t('skip_now') + '</button>' +
+            '</div>' +
+          '</section>';
+        Array.prototype.forEach.call(document.querySelectorAll('.tag-btn'), function(btn) {
+          btn.addEventListener('click', function() {
+            var tag = btn.getAttribute('data-tag');
+            var idx = selected.indexOf(tag);
+            if (idx === -1) {
+              selected.push(tag);
+              btn.style.background = '#6C63FF';
+              btn.style.color = 'white';
+              btn.style.borderColor = '#6C63FF';
+            } else {
+              selected.splice(idx, 1);
+              btn.style.background = '';
+              btn.style.color = '';
+              btn.style.borderColor = '';
+            }
+          });
+        });
+
+        async function saveAndContinue() {
+          try {
+            if (selected.length) await API.updateInterests(selected);
+          } catch(e) {}
+          U.toastNextPage(U.t('account_created'), 'success');
+          window.location.href = 'inicio.html';
+        }
+
+        document.getElementById('save-interests').addEventListener('click', saveAndContinue);
+        document.getElementById('skip-interests').addEventListener('click', saveAndContinue);
+      }
+
+      // ── Login con Google (Firebase) ──────────────
+      if (!firebase.apps.length) {
+        firebase.initializeApp(window.FIREBASE_CONFIG);
+      }
+      var firebaseAuth = firebase.auth();
+
+      document.getElementById('btn-google').addEventListener('click', async function () {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = U.t('connecting');
+        try {
+          var provider = new firebase.auth.GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: 'select_account' });
+          var result = await firebaseAuth.signInWithPopup(provider);
+          var idToken = await result.user.getIdToken();
+          var gres = await API.loginWithGoogle({
+            idToken: idToken,
+            email:   result.user.email,
+            name:    result.user.displayName,
+            photo:   result.user.photoURL
+          });
+          var loggedUser = gres.user;
+          var _ar2 = ['admin','superadmin','god_admin'];
+          // Mismo comportamiento que en la pantalla de registro:
+          // admin → workspace; usuario nuevo → onboarding; existente → directo a la app.
+          if (_ar2.indexOf(loggedUser.role) !== -1) {
+            loginSuccessAnimation(function() { window.location.href = nextUrl || 'workspace-select.html'; });
+          } else if (gres.isNew) {
+            loginSuccessAnimation(function() { showInterestsStep(); });
+          } else {
+            U.toastNextPage(U.t('welcome_google'), 'success');
+            loginSuccessAnimation(function() { window.location.href = nextUrl || 'inicio.html'; });
+          }
+        } catch (err) {
+          // Cuenta baneada → pantalla de cuenta suspendida.
+          if (err && err.code === 'cuenta_baneada') { showBanScreen(err.ban || {}); return; }
+          var mensajes = {
+            'auth/popup-closed-by-user':    'Cerraste la ventana antes de completar el inicio.',
+            'auth/cancelled-popup-request': 'Solo puede haber una ventana activa.',
+            'auth/network-request-failed':  'Error de red. Revisa tu conexión.'
+          };
+          U.toast(mensajes[err.code] || err.message || 'No se pudo iniciar con Google', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5" alt="Google" /> ' + U.t('continue_google');
+        }
+      });
+
+      document.getElementById('forgot-pw-btn').addEventListener('click', function() {
+        var modalRoot = document.getElementById('modal-root');
+        modalRoot.innerHTML =
+          '<div class="fixed inset-0 z-50 flex items-center justify-center p-6 anim-fade" style="background:rgba(17,24,39,0.75);">' +
+            '<div class="bg-white rounded-card p-6 w-full max-w-sm shadow-soft anim-pop">' +
+              '<h3 class="text-lg font-bold text-gray-800 mb-2">Recuperar contraseña</h3>' +
+              '<p class="text-sm text-gray-400 mb-4">Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.</p>' +
+              '<input id="forgot-email" type="email" placeholder="tu@correo.com" class="w-full px-4 py-3 bg-base rounded-btn border border-gray-200 focus:border-primary outline-none text-sm mb-3" />' +
+              '<button id="forgot-send" class="w-full py-2.5 rounded-btn text-white text-sm font-medium mb-2" style="background:#6C63FF;">Enviar enlace</button>' +
+              '<button id="forgot-cancel" class="w-full py-2.5 rounded-btn text-sm font-medium border border-gray-200 text-gray-600">Cancelar</button>' +
+            '</div>' +
+          '</div>';
+
+        document.getElementById('forgot-cancel').addEventListener('click', function() { modalRoot.innerHTML = ''; });
+
+        document.getElementById('forgot-send').addEventListener('click', async function() {
+          var btn = this;
+          var email = document.getElementById('forgot-email').value.trim();
+          if (!email) { U.toast('Ingresa tu email', 'error'); return; }
+          btn.disabled = true; btn.textContent = 'Enviando...';
+          try {
+            var res = await fetch('https://lyfters-badge-app.onrender.com/auth/forgot-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: email })
+            });
+            await res.json();
+            modalRoot.innerHTML = '';
+            U.toast('Si el email existe, recibirás un correo en breve', 'success');
+          } catch(err) {
+            U.toast('No se pudo enviar el correo', 'error');
+            btn.disabled = false; btn.textContent = 'Enviar enlace';
+          }
+        });
+      });
+    })();
+  </script>
+  <script>
+    (function() {
+      var glow = document.querySelector('[data-scroll-glow]');
+      if (!glow) return;
+      window.addEventListener('scroll', function() {
+        var p = Math.min(window.scrollY / (document.body.scrollHeight - window.innerHeight || 1), 1);
+        glow.style.transform = 'translateY(' + (p * 80) + 'px)';
+        glow.style.opacity = String(0.6 + p * 0.4);
+      }, { passive: true });
+    })();
+  </script>
+  <script>
+    window.addEventListener('load', () => {
+      const ls = document.getElementById('loading-screen');
+      ls.style.opacity = '0';
+      ls.style.pointerEvents = 'none';
+    });
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

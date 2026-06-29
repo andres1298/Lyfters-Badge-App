@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workspace — Lyfter Badge App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body style="margin:0;font-family:Manrope,system-ui,sans-serif;">
+  <div id="app"></div>
+  <div id="toast-root" style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;"></div>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+  (function() {
+    var API = window.LyfterAPI;
+    var U   = window.LyfterUtils;
+
+    var user = API.currentUser();
+    if (!user) { window.location.replace('login.html'); return; }
+    if (!['superadmin','admin','god_admin'].includes(user.role)) {
+      window.location.replace('profile.html'); return;
+    }
+
+    var app = document.getElementById('app');
+    app.innerHTML = U.loadingHtml();
+    var _membersPage = 0, MEMBERS_PAGE = 15, _allMembers = [];
+
+    function pagerHtml(total, page, size, gotoFn) {
+      if (total <= size) return '';
+      var totalPages = Math.ceil(total / size);
+      var from = page * size + 1;
+      var to = Math.min((page + 1) * size, total);
+      var btns = '';
+      for (var p = 0; p < totalPages; p++) {
+        if (totalPages > 7 && p !== 0 && p !== totalPages - 1 && Math.abs(p - page) > 1) {
+          if (p === page - 2 || p === page + 2) btns += '<span style="color:#4a5060;align-self:center;padding:0 2px;">…</span>';
+          continue;
+        }
+        var active = p === page;
+        btns += '<button onclick="' + gotoFn + '(' + p + ')" style="min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';color:' + (active ? '#d897e7' : '#8b93a3') + ';font-family:Poppins,sans-serif;font-size:13px;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;">' + (p + 1) + '</button>';
+      }
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px;border-top:1px solid #2f343f;margin-top:8px;flex-wrap:wrap;gap:8px;">' +
+        '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;">' + from + '–' + to + ' de ' + total + '</span>' +
+        '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+          (page > 0 ? '<button onclick="' + gotoFn + '(' + (page-1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">←</button>' : '') +
+          btns +
+          (page < totalPages - 1 ? '<button onclick="' + gotoFn + '(' + (page+1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">→</button>' : '') +
+        '</div>' +
+      '</div>';
+    }
+
+    var styles = '<style>' +
+      '.ws-header{background:rgba(26,29,36,0.88);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid rgba(216,151,231,0.10);padding:16px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;}' +
+      '.ws-title{font-family:Poppins,sans-serif;font-size:20px;font-weight:700;color:#f4f6f9;}' +
+      '.ws-main{margin:0 auto;padding:36px 24px 80px;min-height:100vh;}' +
+      '.ws-card{background:#1c1f27;border:1px solid #2f343f;border-radius:20px;padding:28px 30px;margin-bottom:20px;}' +
+      '.ws-card-title{font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#f4f6f9;margin-bottom:18px;}' +
+      '.ws-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}' +
+      '.ws-stat{background:#20242d;border:1px solid #2f343f;border-radius:14px;padding:16px;text-align:center;}' +
+      '.ws-stat-num{font-family:Poppins,sans-serif;font-size:28px;font-weight:800;color:#f4f6f9;}' +
+      '.ws-stat-label{font-size:12px;color:#8b93a3;margin-top:4px;}' +
+      '.ws-table{width:100%;border-collapse:collapse;}' +
+      '.ws-table th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6f7686;font-weight:700;padding:10px 14px;border-bottom:1px solid #262a33;text-align:left;}' +
+      '.ws-table td{padding:12px 14px;border-bottom:1px solid #20242d;font-size:14px;color:#cdd2db;}' +
+      '.ws-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#70cfff,#d897e7);display:inline-flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#1c1f27;margin-right:10px;vertical-align:middle;}' +
+      '.ws-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;}' +
+      '.ws-badge.superadmin{background:rgba(216,151,231,0.15);color:#d897e7;}' +
+      '.ws-badge.admin{background:rgba(112,207,255,0.15);color:#70cfff;}' +
+      '.ws-badge.participant{background:rgba(171,209,148,0.15);color:#abd194;}' +
+      '.ws-badge.god_admin{background:rgba(255,200,80,0.15);color:#ffc850;}' +
+      '.ws-input{height:48px;border-radius:12px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:15px;padding:0 16px;outline:none;width:100%;box-sizing:border-box;}' +
+      '.ws-input:focus{border-color:#d897e7;box-shadow:0 0 0 3px rgba(216,151,231,0.18);}' +
+      '.ws-select{height:48px;border-radius:12px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:15px;padding:0 16px;outline:none;appearance:none;cursor:pointer;}' +
+      '.ws-btn{height:44px;padding:0 20px;border-radius:10px;border:none;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s;}' +
+      '.ws-btn.cta{background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;box-shadow:0 4px 16px rgba(230,138,141,0.28);}' +
+      '.ws-btn.outline{background:transparent;border:1px solid #353a46;color:#aab1bf;}' +
+      '.ws-btn.danger{background:rgba(230,138,141,0.12);border:1px solid rgba(230,138,141,0.30);color:#e68a8d;}' +
+      '.ws-btn:hover{opacity:.85;}' +
+      '.ws-tabs{display:flex;gap:4px;margin-bottom:20px;}' +
+      '.ws-tab{padding:8px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;color:#8b93a3;background:transparent;font-family:Manrope,sans-serif;}' +
+      '.ws-tab.active{background:rgba(216,151,231,0.12);border-color:rgba(216,151,231,0.28);color:#f4f6f9;}' +
+      '.ws-code-box{background:#20242d;border:1px solid #353a46;border-radius:14px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;}' +
+      '.ws-code{font-family:"JetBrains Mono",monospace;font-size:28px;font-weight:600;color:#d897e7;letter-spacing:.2em;}' +
+      '.ws-all-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}' +
+      '.ws-all-card{background:#1c1f27;border:1px solid #2f343f;border-radius:16px;padding:20px;transition:border-color .15s;}' +
+      '.ws-all-card:hover{border-color:rgba(216,151,231,0.35);}' +
+    '</style>';
+
+    async function init() {
+      try {
+        var isGod = user.role === 'god_admin';
+        var wsData, members, invList, allWorkspaces = [];
+
+        if (isGod) {
+          var allRes = await fetch(API.base + '/workspaces/', { headers: API.authHeaders() });
+          allWorkspaces = await allRes.json();
+          // Para god_admin mostrar el primer workspace o crear vista global
+          if (allWorkspaces.length > 0) {
+            wsData = allWorkspaces[0];
+            wsData.id = wsData.id || allWorkspaces[0].id;
+          } else {
+            wsData = { id: null, name: 'Sin workspaces', slug: '', plan: 'enterprise', my_role: 'god_admin' };
+          }
+        } else {
+          var wsRes = await fetch(API.base + '/workspaces/mine', { headers: API.authHeaders() });
+          if (!wsRes.ok) {
+            app.innerHTML = styles + '<div class="ws-main"><div class="ws-card" style="text-align:center;padding:48px;">' +
+              '<div style="margin-bottom:16px;"><img src="assets/icons/ui/icono-evento.png" style="width:18px;height:18px;object-fit:contain;"></div>' +
+              '<p style="color:#8b93a3;font-size:15px;margin-bottom:24px;">No pertenecés a ningún workspace todavía.</p>' +
+              '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
+                '<a href="profile.html" class="ws-btn outline" style="display:inline-flex;align-items:center;text-decoration:none;">← Volver al perfil</a>' +
+              '</div></div></div>';
+            return;
+          }
+          wsData = await wsRes.json();
+        }
+
+        if (wsData && wsData.id) {
+          var memRes = await fetch(API.base + '/workspaces/' + wsData.id + '/members', { headers: API.authHeaders() });
+          members = memRes.ok ? await memRes.json() : [];
+        } else {
+          members = [];
+        }
+
+        renderPage(wsData, members, [], allWorkspaces, isGod);
+        if (isGod) { loadUsersForGrant(); loadReportsBadge(); }
+      } catch(err) {
+        // Si falla la carga pero es god_admin, igual mostrar el panel de herramientas
+        if (user.role === 'god_admin') {
+          renderPage({ id: null, name: '', slug: '', plan: '' }, [], [], [], true);
+          loadUsersForGrant(); loadReportsBadge();
+        } else {
+          app.innerHTML = styles + U.errorHtml('Error cargando el workspace: ' + err.message);
+        }
+      }
+    }
+
+    var ROLE_RANK = { participant: 1, admin: 2, superadmin: 3, god_admin: 4 };
+
+    function renderPage(ws, members, invList, allWs, isGod) {
+      var callerRole = isGod ? 'god_admin' : (ws.my_role || user.role);
+      var callerRank = ROLE_RANK[callerRole] || 0;
+
+      _allMembers = members;
+
+      function buildMemberRow(m) {
+        var initials   = (m.name || '?').split(' ').map(function(w){ return w[0] || ''; }).join('').slice(0,2).toUpperCase();
+        var targetRank = ROLE_RANK[m.role] || 0;
+        var canEdit    = callerRank > targetRank;
+        var assignableRoles = ['participant','admin','superadmin'].filter(function(r) {
+          return ROLE_RANK[r] < callerRank;
+        });
+        var roleCell = m.role === 'god_admin'
+          ? '<span class="ws-badge god_admin">God Admin</span>'
+          : canEdit
+            ? '<select data-ws="' + ws.id + '" data-uid="' + m.user_id + '" onchange="changeRole(this)" ' +
+                'style="height:32px;padding:0 8px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-size:12px;outline:none;cursor:pointer;">' +
+                assignableRoles.map(function(r) {
+                  return '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + r + '</option>';
+                }).join('') +
+              '</select>'
+            : '<span class="ws-badge ' + (m.role||'') + '" title="Sin permiso para editar este rol">' + (m.role||'') + '</span>';
+        var removeBtn = canEdit
+          ? '<button onclick="removeMember(\'' + ws.id + '\',\'' + m.user_id + '\')" class="ws-btn danger" style="height:34px;font-size:12px;padding:0 12px;">Remover</button>'
+          : '<span style="font-size:11px;color:#4a5060;">—</span>';
+        return '<tr id="row-' + m.user_id + '">' +
+          '<td><span class="ws-avatar">' + initials + '</span>' + U.esc(m.name || '—') + '</td>' +
+          '<td style="color:#8b93a3;">' + U.esc(m.email || '—') + '</td>' +
+          '<td>' + roleCell + '</td>' +
+          '<td>' + removeBtn + '</td>' +
+        '</tr>';
+      }
+
+      var allWsHtml = isGod ? '<div class="ws-card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+          '<div class="ws-card-title" style="margin:0;">Workspaces</div>' +
+          '<a href="workspace-create.html" class="ws-btn cta" style="display:inline-flex;align-items:center;text-decoration:none;height:36px;padding:0 14px;font-size:13px;">+ New</a>' +
+        '</div>' +
+        (allWs.length ? allWs.map(function(w) {
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:#15171d;border-radius:12px;margin-bottom:10px;border:1px solid #2f343f;">' +
+            '<div>' +
+              '<div style="font-size:14px;font-weight:700;color:#f4f6f9;">' + U.esc(w.name||'') + '</div>' +
+              '<div style="font-size:12px;color:#8b93a3;margin-top:2px;">/' + U.esc(w.slug||'') + ' · ' + (w.member_count||0) + ' miembros</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<a href="workspace.html?ws=' + w.id + '" class="ws-btn cta" style="display:inline-flex;align-items:center;text-decoration:none;height:34px;padding:0 14px;font-size:12px;">Entrar</a>' +
+              '<a href="workspace-edit.html?ws=' + w.id + '" class="ws-btn outline" style="display:inline-flex;align-items:center;text-decoration:none;height:34px;padding:0 14px;font-size:12px;background:rgba(255,255,255,0.05);color:#8b93a3;border:1px solid #2f343f;">Editar</a>' +
+            '</div>' +
+          '</div>';
+        }).join('') : '<p style="color:#8b93a3;text-align:center;padding:24px 0;">No hay workspaces aún.</p>') +
+      '</div>' : '';
+
+      app.innerHTML = styles +
+        '<div class="ws-header">' +
+          '<a href="workspace-select.html" style="color:#8b93a3;text-decoration:none;font-size:20px;margin-right:4px;">←</a>' +
+          (ws.logo_url && !isGod
+            ? '<img src="' + ws.logo_url + '" style="height:34px;max-width:50px;object-fit:contain;flex-shrink:0;" />'
+            : '<img src="assets/icons/ui/icono-usuarios.png" style="width:28px;height:28px;object-fit:contain;opacity:.8;" />') +
+          '<div style="flex:1;">' +
+            '<div class="ws-title">' + (isGod ? 'Gestionar plataforma' : (ws.name ? U.esc(ws.name) : 'Mis Workspaces')) + '</div>' +
+            (!isGod && ws.slug ? '<div style="font-size:12px;color:#8b93a3;">/' + U.esc(ws.slug) + (ws.my_role ? ' · ' + ws.my_role : '') + '</div>' : '') +
+          '</div>' +
+          '<a href="landing.html" style="font-size:12px;font-weight:600;color:#8b93a3;text-decoration:none;padding:5px 10px;border-radius:8px;border:1px solid transparent;transition:color .15s,border-color .15s;font-family:Manrope,sans-serif;flex-shrink:0;" onmouseover="this.style.color=\'#d897e7\';this.style.borderColor=\'rgba(216,151,231,0.25)\'" onmouseout="this.style.color=\'#8b93a3\';this.style.borderColor=\'transparent\'">← Inicio</a>' +
+        '</div>' +
+        '<div class="ws-main">' +
+
+          '<div class="ws-stat-grid">' +
+            '<div class="ws-stat"><div class="ws-stat-num">' + members.length + '</div><div class="ws-stat-label">Miembros</div></div>' +
+            (isGod ? '<div class="ws-stat"><div class="ws-stat-num">' + allWs.length + '</div><div class="ws-stat-label">Workspaces totales</div></div>' : '') +
+          '</div>' +
+
+          (!isGod && ws.id ? '<div class="ws-card">' +
+            '<div class="ws-card-title">Logo del workspace</div>' +
+            '<div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;">' +
+              '<div style="flex-shrink:0;">' +
+                '<div style="width:90px;height:90px;border-radius:16px;border:1px solid #353a46;background:#20242d;display:flex;align-items:center;justify-content:center;overflow:hidden;">' +
+                  (ws.logo_url
+                    ? '<img id="ws-logo-preview-current" src="' + ws.logo_url + '" style="max-width:80px;max-height:80px;object-fit:contain;" />'
+                    : '<img src="assets/icons/ui/icono-usuarios.png" style="width:36px;height:36px;object-fit:contain;opacity:.3;" />') +
+                '</div>' +
+              '</div>' +
+              '<div style="flex:1;min-width:200px;">' +
+                '<div style="font-size:13px;color:#cdd2db;margin-bottom:10px;">' + (ws.logo_url ? 'Logo actual del workspace.' : 'Este workspace no tiene logo aún.') + '</div>' +
+                '<div id="ws-logo-upload-zone" ' +
+                  'style="border:2px dashed #2e323d;border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:border-color .2s;" ' +
+                  'onclick="document.getElementById(\'ws-logo-file\').click()" ' +
+                  'ondragover="event.preventDefault();this.style.borderColor=\'#d897e7\';" ' +
+                  'ondragleave="this.style.borderColor=\'#2e323d\';" ' +
+                  'ondrop="wsHandleLogoDrop(event)">' +
+                  '<div id="ws-logo-drop-label">' +
+                    '<img src="assets/icons/ui/icono-añadir-imagen.png" style="width:20px;height:20px;object-fit:contain;opacity:.4;margin-bottom:6px;" />' +
+                    '<div style="font-size:12px;color:#8b93a3;">Clic o arrastrá el logo aquí</div>' +
+                    '<div style="font-size:10px;color:#5a6172;margin-top:3px;">PNG · SVG · WebP · JPG · máx 512 KB · fondo transparente recomendado</div>' +
+                  '</div>' +
+                '</div>' +
+                '<input id="ws-logo-file" type="file" accept="image/png,image/svg+xml,image/webp,image/jpeg" style="display:none;" onchange="wsHandleLogoFile(this)" />' +
+                '<button id="btn-save-logo" onclick="saveWsLogo(\'' + ws.id + '\')" ' +
+                  'style="display:none;margin-top:10px;height:40px;padding:0 20px;border-radius:10px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Guardar logo</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' : '') +
+
+          allWsHtml +
+
+          (ws.id && callerRank >= 3 ? '<div class="ws-card">' +
+            '<div class="ws-card-title">Miembros del workspace</div>' +
+            '<div style="overflow-x:auto;"><table class="ws-table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="members-tbody"></tbody></table></div>' +
+            '<div id="members-pager"></div>' +
+          '</div>' : '') +
+
+          (ws.id && callerRank >= 3 ? '<div class="ws-card">' +
+            '<div class="ws-card-title">Invitar al workspace</div>' +
+            '<div class="ws-tabs">' +
+              '<button class="ws-tab active" id="tab-email" onclick="switchTab(\'email\')">Por email</button>' +
+              '<button class="ws-tab" id="tab-code" onclick="switchTab(\'code\')"><img src="assets/icons/ui/icono-candado.png" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;"> Por código</button>' +
+            '</div>' +
+            '<div id="panel-email">' +
+              '<div style="display:flex;gap:12px;flex-wrap:wrap;">' +
+                '<input id="inv-email" type="email" placeholder="email@empresa.com" class="ws-input" style="flex:1;min-width:200px;" />' +
+                '<select id="inv-role" class="ws-select" style="width:180px;">' +
+                  '<option value="admin">Admin</option>' +
+                  (callerRank >= 4 ? '<option value="superadmin">Super Admin</option>' : '') +
+                '</select>' +
+                '<button class="ws-btn cta" onclick="sendEmailInvite(\'' + ws.id + '\')">Enviar</button>' +
+              '</div>' +
+            '</div>' +
+            '<div id="panel-code" style="display:none;">' +
+              '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">' +
+                '<select id="code-role" class="ws-select" style="width:200px;">' +
+                  '<option value="admin">Admin</option>' +
+                  (callerRank >= 4 ? '<option value="superadmin">Super Admin</option>' : '') +
+                '</select>' +
+                '<button class="ws-btn cta" onclick="generateCode(\'' + ws.id + '\')">Generar código</button>' +
+              '</div>' +
+              '<div id="code-result"></div>' +
+            '</div>' +
+          '</div>' : '') +
+
+          (isGod ? '<div class="ws-card" style="border-color:rgba(255,200,80,0.25);background:linear-gradient(135deg,rgba(255,200,80,0.05),rgba(216,151,231,0.03));">' +
+            '<div class="ws-card-title" style="color:#ffc850;">⚡ Herramientas God Admin</div>' +
+
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:4px;">' +
+
+              '<div style="background:#20242d;border:1px solid #2a2e38;border-radius:14px;padding:20px;">' +
+                '<div style="font-size:13px;font-weight:700;color:#f4f6f9;margin-bottom:6px;">Código de creación de workspace</div>' +
+                '<div style="font-size:12px;color:#8b93a3;margin-bottom:14px;">Genera un código de un solo uso que permite a un admin crear un nuevo workspace.</div>' +
+                '<button class="ws-btn cta" id="btn-gen-creation-code" onclick="genCreationCode()">Generar código</button>' +
+                '<div id="creation-code-result" style="margin-top:12px;"></div>' +
+              '</div>' +
+
+              '<div style="background:#20242d;border:1px solid #2a2e38;border-radius:14px;padding:20px;">' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+                  '<div style="font-size:13px;font-weight:700;color:#f4f6f9;">Otorgar rol en workspace</div>' +
+                  '<button onclick="loadUsersForGrant()" style="font-size:11px;color:#ffc850;background:rgba(255,200,80,0.1);border:1px solid rgba(255,200,80,0.25);border-radius:6px;padding:3px 10px;cursor:pointer;">↻ Cargar usuarios</button>' +
+                '</div>' +
+                '<div style="font-size:12px;color:#8b93a3;margin-bottom:14px;">Asigna a un usuario como miembro de un workspace con un rol específico.</div>' +
+                '<div style="display:flex;flex-direction:column;gap:10px;">' +
+                  '<select id="grant-ws-select" class="ws-select" style="width:100%;">' +
+                    '<option value="">— Seleccionar workspace —</option>' +
+                    allWs.map(function(w) { return '<option value="' + w.id + '">' + U.esc(w.name) + '</option>'; }).join('') +
+                  '</select>' +
+                  '<select id="god-user-select" class="ws-select" style="width:100%;" onchange="this.value && (document.getElementById(\'god-email\').value=this.value)">' +
+                    '<option value="">— Seleccionar usuario —</option>' +
+                  '</select>' +
+                  '<input id="god-email" type="email" placeholder="o escribí el email directamente" class="ws-input" style="width:100%;" />' +
+                  '<select id="grant-role-select" class="ws-select" style="width:100%;">' +
+                    '<option value="admin">Admin</option>' +
+                    '<option value="superadmin">Super Admin</option>' +
+                  '</select>' +
+                  '<button class="ws-btn" style="background:rgba(255,200,80,0.15);color:#ffc850;border:1px solid rgba(255,200,80,0.3);" onclick="grantWorkspaceRole()">Otorgar rol</button>' +
+                '</div>' +
+              '</div>' +
+
+            '</div>' +
+          '</div>' : '') +
+
+          (isGod ? '<div class="ws-card" style="margin-top:4px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;">' +
+              '<div class="ws-card-title" style="margin-bottom:0;display:flex;align-items:center;gap:6px;"><img src="assets/icons/ui/icono-usuarios.png" style="width:18px;height:18px;object-fit:contain;"> Usuarios de la plataforma</div>' +
+              '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+                '<input id="users-search" type="text" placeholder="Buscar..." oninput="filterPlatformUsers(this.value)" ' +
+                  'style="height:36px;padding:0 12px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:13px;outline:none;width:220px;" />' +
+                '<button class="ws-btn outline" onclick="loadPlatformUsers()" style="height:36px;font-size:13px;">Cargar usuarios</button>' +
+              '</div>' +
+            '</div>' +
+            '<div id="platform-users-list">' +
+              '<p style="font-size:13px;color:#6f7686;text-align:center;padding:24px 0;">Hacé clic en "Cargar usuarios" para ver la lista.</p>' +
+            '</div>' +
+          '</div>' : '') +
+
+          (isGod ? '<div class="ws-card" id="reports-section-card" style="margin-top:4px;border-color:rgba(251,191,36,0.25);">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;">' +
+              '<div class="ws-card-title" style="margin-bottom:0;color:#fbbf24;display:flex;align-items:center;gap:8px;">' +
+                '<img src="assets/icons/ui/icono-alerta.png" style="width:20px;height:20px;object-fit:contain;" /> Reportes de usuarios' +
+              '</div>' +
+              '<a href="admin-reports.html" style="height:36px;display:inline-flex;align-items:center;padding:0 16px;border-radius:8px;border:1px solid rgba(251,191,36,0.35);background:rgba(251,191,36,0.1);color:#fbbf24;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer;">Gestionar reportes →</a>' +
+            '</div>' +
+            '<div id="reports-pending-summary" style="font-size:13px;color:#8b93a3;">Cargando reportes pendientes…</div>' +
+          '</div>' : '') +
+
+        '</div>';
+
+      if (ws.id && callerRank >= 3) {
+        _membersPage = 0;
+        var renderMembersTable = function(page) {
+          var tbody = document.getElementById('members-tbody');
+          var pagerEl = document.getElementById('members-pager');
+          if (!tbody) return;
+          var list = _allMembers;
+          if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="color:#8b93a3;text-align:center;padding:24px;">No hay miembros</td></tr>';
+            if (pagerEl) pagerEl.innerHTML = '';
+            return;
+          }
+          var slice = list.slice(page * MEMBERS_PAGE, (page + 1) * MEMBERS_PAGE);
+          tbody.innerHTML = slice.map(buildMemberRow).join('');
+          if (pagerEl) pagerEl.innerHTML = pagerHtml(list.length, page, MEMBERS_PAGE, '_goMembersPage');
+        };
+        window._goMembersPage = function(p) { _membersPage = p; renderMembersTable(p); window.scrollTo(0, 0); };
+        renderMembersTable(0);
+      }
+    }
+
+    window.switchTab = function(tab) {
+      document.getElementById('panel-email').style.display = tab === 'email' ? '' : 'none';
+      document.getElementById('panel-code').style.display  = tab === 'code'  ? '' : 'none';
+      document.getElementById('tab-email').className = 'ws-tab' + (tab === 'email' ? ' active' : '');
+      document.getElementById('tab-code').className  = 'ws-tab' + (tab === 'code'  ? ' active' : '');
+    };
+
+    window.sendEmailInvite = async function(wsId) {
+      var email = document.getElementById('inv-email').value.trim();
+      var role  = document.getElementById('inv-role').value;
+      if (!email) { U.toast('Ingresá un email', 'error'); return; }
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/invite', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+          body: JSON.stringify({ email: email, role: role, method: 'email' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        U.toast(data.email_sent ? 'Email enviado a ' + email : 'Código generado: ' + data.code, 'success');
+        document.getElementById('inv-email').value = '';
+        setTimeout(function() { init(); }, 800);
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    window.generateCode = async function(wsId) {
+      var role = document.getElementById('code-role').value;
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/invite', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+          body: JSON.stringify({ role: role, method: 'code' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        document.getElementById('code-result').innerHTML =
+          '<div class="ws-code-box">' +
+            '<div>' +
+              '<div style="font-size:12px;color:#8b93a3;margin-bottom:8px;">Compartí este código con el invitado:</div>' +
+              '<div class="ws-code">' + data.code + '</div>' +
+              '<div style="font-size:12px;color:#6f7686;margin-top:6px;">Rol: ' + role + ' · Expira en 7 días</div>' +
+            '</div>' +
+            '<button class="ws-btn outline" onclick="navigator.clipboard.writeText(\'' + data.code + '\').then(function(){ U.toast(\'Código copiado\',\'success\'); })">Copiar</button>' +
+          '</div>';
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    window.changeRole = async function(sel) {
+      var wsId  = sel.dataset.ws;
+      var userId = sel.dataset.uid;
+      var newRole = sel.value;
+      var prev = sel.querySelector('option:checked');
+      sel.disabled = true;
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/members/' + userId, {
+          method: 'PATCH',
+          headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+          body: JSON.stringify({ role: newRole })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        U.toast('Rol actualizado a ' + newRole, 'success');
+      } catch(e) {
+        U.toast(e.message, 'error');
+        if (prev) sel.value = prev.value;
+      }
+      sel.disabled = false;
+    };
+
+    window.removeMember = async function(wsId, userId) {
+      if (!confirm('¿Seguro que querés remover a este miembro?')) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/members/' + userId, {
+          method: 'DELETE',
+          headers: API.authHeaders()
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        U.toast('Miembro removido', 'success');
+        init();
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    window.genCreationCode = async function() {
+      var btn = document.getElementById('btn-gen-creation-code');
+      var out = document.getElementById('creation-code-result');
+      btn.disabled = true; btn.textContent = 'Generando...';
+      try {
+        var res = await fetch(API.base + '/workspaces/creation-code', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+        });
+        var data = {};
+        try { data = await res.json(); } catch(je) {
+          throw new Error('Error del servidor (estado ' + res.status + '). Intentá de nuevo.');
+        }
+        if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
+        var exp = data.expires_at ? new Date(data.expires_at).toLocaleDateString('es-ES', {day:'numeric',month:'long'}) : '';
+        out.innerHTML =
+          '<div style="background:#15171d;border:1px solid rgba(255,200,80,0.25);border-radius:10px;padding:12px 16px;margin-top:4px;">' +
+            '<div style="font-size:11px;color:#8b93a3;margin-bottom:4px;">Código de un solo uso · expira ' + exp + '</div>' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+              '<code style="font-family:JetBrains Mono,monospace;font-size:20px;font-weight:700;color:#ffc850;letter-spacing:.15em;">' + U.esc(data.code) + '</code>' +
+              '<button onclick="navigator.clipboard.writeText(\'' + U.esc(data.code) + '\').then(function(){ U.toast(\'Copiado\',\'success\'); })" style="height:30px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,200,80,0.3);background:rgba(255,200,80,0.1);color:#ffc850;font-size:12px;cursor:pointer;">Copiar</button>' +
+            '</div>' +
+          '</div>';
+        U.toast('Código generado', 'success');
+      } catch(e) { U.toast(e.message, 'error'); }
+      btn.disabled = false; btn.textContent = 'Generar código';
+    };
+
+    window.loadUsersForGrant = async function() {
+      var sel = document.getElementById('god-user-select');
+      if (!sel) return;
+      sel.disabled = true;
+      try {
+        var res = await fetch(API.base + '/workspaces/platform/users', { headers: API.authHeaders() });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        var eligible = data.filter(function(u) { return u.role !== 'god_admin'; });
+        eligible.sort(function(a, b) { return (a.name||'').localeCompare(b.name||''); });
+        sel.innerHTML = '<option value="">— Seleccionar usuario (' + eligible.length + ') —</option>' +
+          eligible.map(function(u) {
+            return '<option value="' + U.esc(u.email) + '">' +
+              U.esc(u.name || u.email) + ' · ' + U.esc(u.email) + ' · ' + (u.role || '') +
+            '</option>';
+          }).join('');
+        U.toast(eligible.length + ' usuarios cargados', 'success');
+      } catch(e) { U.toast('No se pudo cargar la lista', 'error'); }
+      sel.disabled = false;
+    };
+
+    window.loadReportsBadge = async function() {
+      var el = document.getElementById('reports-pending-summary');
+      if (!el) return;
+      try {
+        var res = await fetch(API.base + '/reports/?status=pending', { headers: API.authHeaders() });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        var count = Array.isArray(data) ? data.length : 0;
+        el.innerHTML = count > 0
+          ? '<span style="display:inline-flex;align-items:center;gap:6px;">' +
+              '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:999px;background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;font-family:Poppins,sans-serif;font-size:12px;font-weight:700;padding:0 6px;">' + count + '</span>' +
+              'reporte' + (count === 1 ? '' : 's') + ' pendiente' + (count === 1 ? '' : 's') + ' de revisión' +
+            '</span>'
+          : 'No hay reportes pendientes.';
+      } catch(e) {
+        el.innerHTML = '<span style="color:#e68a8d;font-size:12px;">No se pudo cargar el conteo.</span>';
+      }
+    };
+
+    window.grantWorkspaceRole = async function() {
+      var wsId  = (document.getElementById('grant-ws-select') || {}).value || '';
+      var email = ((document.getElementById('god-email') || {}).value || '').trim();
+      var role  = (document.getElementById('grant-role-select') || {}).value || '';
+      if (!wsId)  { U.toast('Seleccioná un workspace', 'error'); return; }
+      if (!email) { U.toast('Ingresá un email o seleccioná un usuario', 'error'); return; }
+      if (!role)  { U.toast('Seleccioná un rol', 'error'); return; }
+      var c = confirm('¿Vas a asignar a ' + email + ' como ' + role + ' en el workspace seleccionado?');
+      if (!c) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/invite', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+          body: JSON.stringify({ email: email, role: role, method: 'email' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        U.toast('<img src="assets/icons/ui/icono-reclamado.png" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;"> Invitación enviada a ' + email + ' como ' + role, 'success');
+        var inp = document.getElementById('god-email');
+        if (inp) inp.value = '';
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    // ── Workspace logo upload ──────────────────────────────────
+    var _wsNewLogoDataUrl = null;
+
+    window.wsHandleLogoFile = function(input) {
+      var file = input.files[0];
+      if (!file) return;
+      if (file.size > 512 * 1024) { U.toast('El logo no puede superar 512 KB', 'error'); input.value = ''; return; }
+      var validTypes = ['image/png', 'image/svg+xml', 'image/webp', 'image/jpeg', 'image/jpg'];
+      if (validTypes.indexOf(file.type) === -1) { U.toast('Formato no válido. Usá PNG, SVG, WebP o JPG', 'error'); input.value = ''; return; }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        _wsNewLogoDataUrl = e.target.result;
+        var label = document.getElementById('ws-logo-drop-label');
+        if (label) label.innerHTML =
+          '<img src="' + e.target.result + '" style="max-width:80px;max-height:48px;object-fit:contain;margin-bottom:6px;border-radius:4px;" />' +
+          '<div style="font-size:11px;color:#cdd2db;">' + (file.size/1024).toFixed(0) + ' KB · ' + file.name + '</div>';
+        var zone = document.getElementById('ws-logo-upload-zone');
+        if (zone) zone.style.borderColor = '#d897e7';
+        var btn = document.getElementById('btn-save-logo');
+        if (btn) btn.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.wsHandleLogoDrop = function(event) {
+      event.preventDefault();
+      var zone = document.getElementById('ws-logo-upload-zone');
+      if (zone) zone.style.borderColor = '#2e323d';
+      if (event.dataTransfer && event.dataTransfer.files.length)
+        window.wsHandleLogoFile({ files: event.dataTransfer.files, value: '' });
+    };
+
+    window.saveWsLogo = async function(wsId) {
+      if (!_wsNewLogoDataUrl) return;
+      var btn = document.getElementById('btn-save-logo');
+      if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId, {
+          method: 'PATCH',
+          headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+          body: JSON.stringify({ logo_url: _wsNewLogoDataUrl }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        var cur = document.getElementById('ws-logo-preview-current');
+        if (cur) { cur.src = _wsNewLogoDataUrl; }
+        else {
+          var box = document.querySelector('#ws-logo-upload-zone').parentElement.previousElementSibling.querySelector('div');
+          if (box) box.innerHTML = '<img id="ws-logo-preview-current" src="' + _wsNewLogoDataUrl + '" style="max-width:80px;max-height:80px;object-fit:contain;" />';
+        }
+        _wsNewLogoDataUrl = null;
+        U.toast('Logo actualizado', 'success');
+        if (btn) btn.style.display = 'none';
+      } catch(e) {
+        U.toast(e.message, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Guardar logo'; }
+      }
+    };
+
+    // ── Platform user management (god_admin) ──────────────────
+    var _platformUsersCache = [];
+    var _puList = [], _puPage = 0, PU_PAGE = 15;
+
+    window.loadPlatformUsers = async function() {
+      var container = document.getElementById('platform-users-list');
+      if (!container) return;
+      container.innerHTML = '<p style="font-size:13px;color:#8b93a3;text-align:center;padding:20px;">Cargando...</p>';
+      try {
+        var res = await fetch(API.base + '/workspaces/platform/users', { headers: API.authHeaders() });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        _platformUsersCache = data;
+        renderPlatformUsers(data);
+      } catch(e) {
+        container.innerHTML = '<p style="color:#e68a8d;font-size:13px;text-align:center;padding:20px;">Error: ' + U.esc(e.message) + '</p>';
+      }
+    };
+
+    window.filterPlatformUsers = function(q) {
+      if (!_platformUsersCache.length) return;
+      var lq = q.toLowerCase();
+      var filtered = q.length < 2 ? _platformUsersCache : _platformUsersCache.filter(function(u) {
+        return (u.name + ' ' + u.email).toLowerCase().indexOf(lq) !== -1;
+      });
+      _puPage = 0;
+      renderPlatformUsers(filtered);
+    };
+
+    function renderPlatformUsers(list) {
+      _puList = list;
+      _puPage = 0;
+      renderPuPage(list, 0);
+    }
+
+    function renderPuPage(list, page) {
+      var container = document.getElementById('platform-users-list');
+      if (!container) return;
+      if (!list.length) {
+        container.innerHTML = '<p style="font-size:13px;color:#6f7686;text-align:center;padding:20px;">No se encontraron usuarios.</p>';
+        return;
+      }
+      var slice = list.slice(page * PU_PAGE, (page + 1) * PU_PAGE);
+      var rows = slice.map(function(u) {
+        var initials = (u.name || '?').split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
+        var statusCell = u.banned
+          ? '<span class="ws-badge" style="background:rgba(230,138,141,0.15);color:#e68a8d;border:1px solid rgba(230,138,141,0.2);">Baneado' + (u.ban_permanent ? ' ∞' : '') + '</span>' +
+            (u.ban_ip ? '<br/><span style="font-size:10px;color:#6f7686;margin-top:3px;display:block;">IP: ' + U.esc(u.ban_ip) + '</span>' : '')
+          : '<span class="ws-badge" style="background:rgba(171,209,148,0.15);color:#abd194;">Activo</span>';
+        var safeName = u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        var actions = '';
+        if (!u.banned) {
+          actions += '<button onclick="openBanModal(\'' + u.id + '\',\'' + safeName + '\')" ' +
+            'style="height:30px;font-size:12px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,200,80,0.3);background:rgba(255,200,80,0.1);color:#ffc850;cursor:pointer;margin-right:6px;">Banear</button>';
+        } else {
+          actions += '<button onclick="unbanPlatformUser(\'' + u.id + '\')" ' +
+            'style="height:30px;font-size:12px;padding:0 12px;border-radius:8px;border:1px solid #353a46;background:transparent;color:#aab1bf;cursor:pointer;margin-right:6px;">Desbanear</button>';
+        }
+        actions += '<button onclick="deletePlatformUser(\'' + u.id + '\',\'' + safeName + '\')" ' +
+          'class="ws-btn danger" style="height:30px;font-size:12px;padding:0 12px;">Eliminar</button>';
+        return '<tr>' +
+          '<td><span class="ws-avatar">' + initials + '</span>' + U.esc(u.name || '—') + '</td>' +
+          '<td style="color:#8b93a3;">' + U.esc(u.email || '—') + '</td>' +
+          '<td><span class="ws-badge ' + (u.role||'') + '">' + (u.role||'') + '</span></td>' +
+          '<td>' + statusCell + '</td>' +
+          '<td style="white-space:nowrap;">' + actions + '</td>' +
+        '</tr>';
+      }).join('');
+      container.innerHTML =
+        '<div style="overflow-x:auto;">' +
+          '<table class="ws-table"><thead><tr>' +
+            '<th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th>' +
+          '</tr></thead><tbody>' + rows + '</tbody></table>' +
+        '</div>' +
+        pagerHtml(list.length, page, PU_PAGE, '_goPuPage') +
+        '<p style="font-size:11px;color:#4a5060;margin-top:10px;">' + list.length + ' usuario(s)</p>';
+    }
+
+    window._goPuPage = function(p) { _puPage = p; renderPuPage(_puList, p); window.scrollTo(0, 0); };
+
+    var _banModalTarget = null;
+    var _banSuccessCb = null;
+
+    window.openBanModal = function(userId, userName) {
+      _banModalTarget = userId;
+      var old = document.getElementById('ban-modal-overlay');
+      if (old) old.remove();
+
+      var DURATIONS = [
+        {label:'1 hora',   val:'1'},
+        {label:'6 horas',  val:'6'},
+        {label:'24 horas', val:'24', checked:true},
+        {label:'7 días',   val:'168'},
+        {label:'30 días',  val:'720'},
+        {label:'Permanente', val:'perm'},
+      ];
+
+      var overlay = document.createElement('div');
+      overlay.id = 'ban-modal-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+      overlay.innerHTML =
+        '<div style="background:#1c1f27;border:1px solid #353a46;border-radius:20px;padding:28px 30px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.5);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">' +
+            '<div style="font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#ffc850;">Banear a ' + U.esc(userName) + '</div>' +
+            '<button onclick="closeBanModal()" style="background:none;border:none;color:#6f7686;font-size:22px;cursor:pointer;line-height:1;padding:0 4px;">×</button>' +
+          '</div>' +
+
+          '<div style="margin-bottom:18px;">' +
+            '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase;">Duración</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">' +
+              DURATIONS.map(function(d) {
+                return '<label style="display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:10px;border:1px solid #353a46;cursor:pointer;font-size:13px;color:#cdd2db;">' +
+                  '<input type="radio" name="ban-dur" value="' + d.val + '"' + (d.checked ? ' checked' : '') + ' style="accent-color:#ffc850;flex-shrink:0;"/> ' + d.label + '</label>';
+              }).join('') +
+            '</div>' +
+          '</div>' +
+
+          '<div style="margin-bottom:18px;">' +
+            '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase;">Alcance</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;">' +
+              '<label style="display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-radius:10px;border:1px solid #353a46;cursor:pointer;font-size:13px;color:#cdd2db;">' +
+                '<input type="radio" name="ban-scope" value="account" checked style="accent-color:#ffc850;flex-shrink:0;margin-top:2px;"/> ' +
+                '<div><div style="font-weight:600;">Solo la cuenta</div><div style="font-size:11px;color:#8b93a3;margin-top:2px;">El usuario no puede iniciar sesión con esta cuenta.</div></div>' +
+              '</label>' +
+              '<label style="display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-radius:10px;border:1px solid #353a46;cursor:pointer;font-size:13px;color:#cdd2db;">' +
+                '<input type="radio" name="ban-scope" value="account_ip" style="accent-color:#ffc850;flex-shrink:0;margin-top:2px;"/> ' +
+                '<div><div style="font-weight:600;">Cuenta + IP</div><div style="font-size:11px;color:#8b93a3;margin-top:2px;">Bloquea también el acceso desde la IP de su último login (si disponible).</div></div>' +
+              '</label>' +
+            '</div>' +
+          '</div>' +
+
+          '<div style="margin-bottom:22px;">' +
+            '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:8px;letter-spacing:.06em;text-transform:uppercase;">Razón (opcional)</div>' +
+            '<input id="ban-reason-input" type="text" placeholder="Ej: spam, comportamiento inapropiado..." ' +
+              'style="width:100%;height:44px;border-radius:10px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:14px;padding:0 14px;outline:none;box-sizing:border-box;" />' +
+          '</div>' +
+
+          '<div style="display:flex;gap:10px;">' +
+            '<button onclick="closeBanModal()" style="flex:1;height:44px;border-radius:10px;border:1px solid #353a46;background:transparent;color:#aab1bf;font-family:Poppins,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Cancelar</button>' +
+            '<button id="confirm-ban-btn" onclick="confirmBanUser()" style="flex:2;height:44px;border-radius:10px;border:1px solid rgba(255,200,80,0.4);background:rgba(255,200,80,0.15);color:#ffc850;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Confirmar ban</button>' +
+          '</div>' +
+        '</div>';
+
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeBanModal(); });
+    };
+
+    window.closeBanModal = function() {
+      var el = document.getElementById('ban-modal-overlay');
+      if (el) el.remove();
+      _banModalTarget = null;
+      _banSuccessCb = null;
+    };
+
+    window.confirmBanUser = async function() {
+      if (!_banModalTarget) return;
+      var durEl   = document.querySelector('input[name="ban-dur"]:checked');
+      var scopeEl = document.querySelector('input[name="ban-scope"]:checked');
+      var reason  = (document.getElementById('ban-reason-input').value || '').trim();
+      var dur     = durEl ? durEl.value : '24';
+      var scope   = scopeEl ? scopeEl.value : 'account';
+      var duration_hours = dur === 'perm' ? null : parseInt(dur, 10);
+
+      var btn = document.getElementById('confirm-ban-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
+      try {
+        var res = await fetch(API.base + '/workspaces/platform/users/' + _banModalTarget + '/ban', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+          body: JSON.stringify({ duration_hours: duration_hours, ban_scope: scope, reason: reason }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        var cb = _banSuccessCb;
+        closeBanModal();
+        U.toast('Usuario baneado', 'success');
+        if (cb) cb(); else loadPlatformUsers();
+      } catch(e) {
+        U.toast(e.message, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Confirmar ban'; }
+      }
+    };
+
+    window.unbanPlatformUser = async function(userId) {
+      if (!confirm('¿Desbanear a este usuario?')) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/platform/users/' + userId + '/unban', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        U.toast('Usuario desbaneado', 'success');
+        loadPlatformUsers();
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    window.deletePlatformUser = async function(userId, userName) {
+      if (!confirm('¿Eliminar la cuenta de ' + userName + '?\n\nEsta acción es PERMANENTE y elimina todos sus datos.')) return;
+      if (!confirm('CONFIRMACIÓN FINAL\n¿Eliminar definitivamente a ' + userName + '?')) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/platform/users/' + userId, {
+          method: 'DELETE',
+          headers: API.authHeaders(),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        U.toast('Cuenta eliminada', 'success');
+        loadPlatformUsers();
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    init();
+  })();
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

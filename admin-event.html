@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eventos — Lyfter Badge App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="loading-screen">
+    <img src="assets/icons/ui/logo-lyfter.jpeg" alt="Lyfter" />
+    <div class="loader"></div>
+    <span>Cargando...</span>
+  <div id="server-wakeup-notice" style="display:none;margin-top:16px;font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;text-align:center;max-width:240px;">
+    <img src="assets/icons/ui/reloj-de-arena.png" style="width:32px;height:32px;object-fit:contain;display:block;margin:0 auto 6px;opacity:0.7;" />
+    El servidor está despertando...<br>Esto puede tardar hasta 1 minuto.
+  </div>
+  </div>
+  <main id="app"></main>
+  <div id="modal-root"></div>
+  <div id="toast-root" class="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var STATUS_MAP = {
+        draft:     { label: 'Borrador' },
+        pending:   { label: 'Pendiente aprobación' },
+        upcoming:  { label: 'Próximo' },
+        open:      { label: 'Abierto registro' },
+        closed:    { label: 'Registro cerrado' },
+        ongoing:   { label: 'En curso' },
+        paused:    { label: 'Pausado' },
+        finished:  { label: 'Finalizado' },
+        cancelled: { label: 'Cancelado' },
+        postponed: { label: 'Pospuesto' },
+        archived:  { label: 'Archivado' },
+      };
+      var API = window.LyfterAPI;
+      var U   = window.LyfterUtils;
+
+      var user = API.currentUser();
+      if (!user) { window.location.replace('login.html'); return; }
+      var ADMIN_ROLES = ['admin','superadmin','god_admin'];
+      if (ADMIN_ROLES.indexOf(user.role) === -1) { window.location.replace('profile.html'); return; }
+      try { if (!sessionStorage.getItem('lyfter_ws_entered')) { window.location.replace('workspace-select.html'); return; } } catch(e) {}
+      // Verificar consistencia entre sessionStorage y JWT
+      try {
+        var _activeWs = sessionStorage.getItem('lyfter_active_ws');
+        var _sess = JSON.parse(localStorage.getItem('lyfter_session') || '{}');
+        var _payload = {};
+        try { _payload = JSON.parse(atob((_sess.token || '').split('.')[1])); } catch(e) {}
+        if (_activeWs && _payload.workspace_id && _activeWs !== _payload.workspace_id) {
+          sessionStorage.removeItem('lyfter_active_ws');
+          sessionStorage.removeItem('lyfter_ws_entered');
+          window.location.replace('workspace-select.html');
+        }
+      } catch(e) {}
+
+      var app = document.getElementById('app');
+      U.showPendingToast();
+      var _evPage = 0, EV_PAGE = 10, _adminEvents = [], _filteredAdminEvents = [];
+      var _CARD_GRADIENTS = [
+        'linear-gradient(120deg,#d897e7 0%,#e68a8d 60%,#ffcb8a 100%)',
+        'linear-gradient(120deg,#70cfff 0%,#abd194 100%)',
+        'linear-gradient(120deg,#ffcb8a 0%,#e68a8d 100%)',
+        'linear-gradient(120deg,#abd194 0%,#70cfff 100%)',
+      ];
+
+      function pagerHtml(total, page, size, gotoFn) {
+        if (total <= size) return '';
+        var totalPages = Math.ceil(total / size);
+        var from = page * size + 1;
+        var to = Math.min((page + 1) * size, total);
+        var btns = '';
+        for (var p = 0; p < totalPages; p++) {
+          if (totalPages > 7 && p !== 0 && p !== totalPages - 1 && Math.abs(p - page) > 1) {
+            if (p === page - 2 || p === page + 2) btns += '<span style="color:#4a5060;align-self:center;padding:0 2px;">…</span>';
+            continue;
+          }
+          var active = p === page;
+          btns += '<button onclick="' + gotoFn + '(' + p + ')" style="min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';color:' + (active ? '#d897e7' : '#8b93a3') + ';font-family:Poppins,sans-serif;font-size:13px;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;">' + (p + 1) + '</button>';
+        }
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px;border-top:1px solid #2f343f;margin-top:8px;flex-wrap:wrap;gap:8px;">' +
+          '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;">' + from + '–' + to + ' de ' + total + '</span>' +
+          '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+            (page > 0 ? '<button onclick="' + gotoFn + '(' + (page-1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">←</button>' : '') +
+            btns +
+            (page < totalPages - 1 ? '<button onclick="' + gotoFn + '(' + (page+1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">→</button>' : '') +
+          '</div>' +
+        '</div>';
+      }
+
+      function renderAdminEvents(page) {
+        var container = document.getElementById('events-list');
+        if (!container) return;
+        var list = _filteredAdminEvents;
+        var html;
+        if (!list.length) {
+          html = '<p style="color:#8b93a3;font-size:14px;text-align:center;padding:40px;">No hay eventos. Crea el primero con el botón + New</p>';
+        } else {
+          var slice = list.slice(page * EV_PAGE, (page + 1) * EV_PAGE);
+          html = slice.map(function(e, i) {
+            var gi = list.indexOf(e);
+            var grad = _CARD_GRADIENTS[gi % _CARD_GRADIENTS.length];
+            var bgImg = e.photo ? 'background-image:url(' + U.esc(e.photo) + ');background-size:cover;background-position:center;' : '';
+            var statusLabel = STATUS_MAP[e.status] ? STATUS_MAP[e.status].label : (e.status || 'draft');
+            return '<div style="border-radius:16px;overflow:hidden;border:1px solid #2f343f;background:#20242d;margin-bottom:16px;" class="anim-fade">' +
+              '<div style="position:relative;height:140px;background:' + grad + ';' + bgImg + '">' +
+                '<div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,0.6));pointer-events:none;"></div>' +
+                '<span style="position:absolute;top:12px;right:14px;font-size:11px;font-weight:700;background:rgba(255,255,255,0.9);padding:4px 11px;border-radius:999px;color:#3a1f20;">' + statusLabel + '</span>' +
+                '<div style="position:absolute;bottom:12px;left:16px;right:16px;">' +
+                  '<p style="font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,0.5);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + U.esc(e.name) + '</p>' +
+                '</div>' +
+                '<div id="photo-area-' + e.id + '" style="position:absolute;top:12px;left:14px;cursor:pointer;" title="Cambiar foto">' +
+                  '<span style="background:rgba(0,0,0,0.45);border-radius:8px;padding:5px 7px;line-height:0;display:inline-block;"><img src="assets/icons/ui/icono-añadir-imagen.png" alt="Foto" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;display:inline-block;" /></span>' +
+                '</div>' +
+              '</div>' +
+              '<div style="padding:14px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+                (e.workspace_name ? '<span style="font-size:11px;font-weight:700;color:#b18cf7;font-family:Manrope,sans-serif;background:rgba(177,140,247,0.12);border:1px solid rgba(177,140,247,0.3);padding:2px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;"><img src="assets/icons/ui/icono-evento.png" style="width:18px;height:18px;object-fit:contain;"> ' + U.esc(e.workspace_name) + '</span>' : '') +
+                '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;display:inline-flex;align-items:center;gap:4px;"><img src="assets/icons/ui/icono-calendario-blanco.png" alt="" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;display:inline-block;" />' + fmtDate(e.start) + (e.end ? ' — ' + fmtDate(e.end) : '') + '</span>' +
+                (e.prize ? '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;">' + U.esc(e.prize) + '</span>' : '') +
+                '<div style="margin-left:auto;display:flex;gap:8px;align-items:center;">' +
+                  '<select data-status-sel="' + e.id + '" class="status-sel" style="height:32px;padding:0 8px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-size:12px;outline:none;cursor:pointer;">' +
+                    Object.keys(STATUS_MAP).map(function(k) {
+                      return '<option value="' + k + '"' + (e.status === k ? ' selected' : '') + '>' + STATUS_MAP[k].label + '</option>';
+                    }).join('') +
+                  '</select>' +
+                  '<button data-enter="' + e.id + '" class="enter-btn" style="height:32px;padding:0 14px;border-radius:8px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-size:12px;font-weight:700;cursor:pointer;font-family:Poppins,sans-serif;">Entrar →</button>' +
+                  '<button data-del="' + e.id + '" data-name="' + U.esc(e.name) + '" class="del-btn" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid rgba(230,138,141,0.4);background:transparent;color:#e68a8d;font-size:12px;cursor:pointer;"><img src="assets/icons/ui/icono-basura-blanco.png" alt="Eliminar" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block;filter:invert(60%) sepia(1) saturate(3) hue-rotate(300deg);" /></button>' +
+                '</div>' +
+              (e.tags && e.tags.length
+                ? '<div style="width:100%;display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">' +
+                    e.tags.map(function(tag) {
+                      return '<span data-tag="' + U.esc(tag) + '" style="font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid #353a46;color:#8b93a3;font-family:Manrope,sans-serif;cursor:pointer;" title="Filtrar por este tag">' + U.esc(tag) + '</span>';
+                    }).join('') +
+                  '</div>'
+                : '') +
+            '</div>' +
+          '</div>';
+          }).join('') + pagerHtml(list.length, page, EV_PAGE, '_goEvPage');
+        }
+        container.innerHTML = html;
+
+        var eventSearch = document.getElementById('event-search');
+        Array.prototype.forEach.call(container.querySelectorAll('[data-tag]'), function(chip) {
+          chip.addEventListener('click', function() {
+            if (eventSearch) { eventSearch.value = chip.getAttribute('data-tag'); _applyAdminSearch(eventSearch.value); }
+          });
+        });
+        Array.prototype.forEach.call(container.querySelectorAll('.enter-btn'), function(btn) {
+          btn.addEventListener('click', function() {
+            window.location.href = 'admin-event-detail.html?id=' + btn.getAttribute('data-enter');
+          });
+        });
+        Array.prototype.forEach.call(container.querySelectorAll('[id^="photo-area-"]'), function(area) {
+          area.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            var eid = area.id.replace('photo-area-', '');
+            var input = document.createElement('input');
+            input.type = 'file'; input.accept = 'image/*';
+            input.onchange = function() {
+              var file = input.files[0];
+              if (!file) return;
+              if (file.size > 3 * 1024 * 1024) { U.toast('Máximo 3MB', 'error'); return; }
+              var reader = new FileReader();
+              reader.onload = async function(evr) {
+                try { await API.updateEventPhoto(eid, evr.target.result); U.toast('Foto actualizada', 'success'); init(); }
+                catch(err) { U.toast(err.message || 'Error', 'error'); }
+              };
+              reader.readAsDataURL(file);
+            };
+            input.click();
+          });
+        });
+        Array.prototype.forEach.call(container.querySelectorAll('.status-sel'), function(sel) {
+          sel.addEventListener('change', async function() {
+            var eid = sel.getAttribute('data-status-sel');
+            var newStatus = sel.value;
+            var active = ['upcoming','open','ongoing','closed'].indexOf(newStatus) !== -1;
+            sel.disabled = true;
+            try { await API.updateEvent(eid, { status: newStatus, activo: active }); U.toast('Estado actualizado', 'success'); init(); }
+            catch(err) { U.toast(err.message || 'Error', 'error'); sel.disabled = false; }
+          });
+        });
+        Array.prototype.forEach.call(container.querySelectorAll('.del-btn'), function(btn) {
+          btn.addEventListener('click', function() {
+            var eid = btn.getAttribute('data-del');
+            var ename = btn.getAttribute('data-name');
+            U.showConfirm('¿Eliminar "' + ename + '"? Se eliminarán todos sus badges y canjes.', async function() {
+              btn.disabled = true;
+              try { await API.deleteEvent(eid); U.toast('Evento eliminado', 'success'); init(); }
+              catch(err) { U.toast(err.message || 'Error', 'error'); btn.disabled = false; }
+            });
+          });
+        });
+      }
+
+      function _applyAdminSearch(q) {
+        q = (q || '').trim().toLowerCase();
+        _filteredAdminEvents = !q ? _adminEvents : _adminEvents.filter(function(e) {
+          return e.name.toLowerCase().indexOf(q) !== -1 || (e.tags || []).some(function(t) { return t.toLowerCase().indexOf(q) !== -1; });
+        });
+        _evPage = 0;
+        renderAdminEvents(0);
+      }
+
+      window._goEvPage = function(p) { _evPage = p; renderAdminEvents(p); window.scrollTo(0, 0); };
+
+      function fmtDate(iso) {
+        if (!iso) return '—';
+        try { return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }); }
+        catch(e) { return iso; }
+      }
+
+      async function init() {
+        try {
+          var events = await API.listAdminEvents();
+          var activeId = U.ensureActive(events);
+          _adminEvents = events;
+          _filteredAdminEvents = events;
+
+          var inner =
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">' +
+              '<div style="position:relative;flex:1;">' +
+                '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);pointer-events:none;line-height:0;"><img src="assets/icons/ui/lupa.png" alt="Buscar" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;opacity:0.5;" /></span>' +
+                '<input id="event-search" type="text" placeholder="Buscar evento..." style="width:100%;height:50px;padding:0 18px 0 42px;background:#2e323d;border:1px solid #353a46;border-radius:13px;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:14px;outline:none;box-sizing:border-box;" />' +
+              '</div>' +
+              '<button id="btn-new-event" style="height:50px;padding:0 22px;border-radius:13px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;">+ New</button>' +
+            '</div>' +
+            '<div id="events-list"></div>';
+
+          app.innerHTML = U.adminShell('event', inner, events, activeId);
+          U.mountAdminShell();
+          U.hideLoading();
+          renderAdminEvents(0);
+
+          var eventSearch = document.getElementById('event-search');
+          if (eventSearch) {
+            eventSearch.addEventListener('input', function() { _applyAdminSearch(eventSearch.value); });
+          }
+
+          // Botón New
+          document.getElementById('btn-new-event').addEventListener('click', function() {
+            window.location.href = 'admin-event-create.html';
+          });
+
+        } catch(err) {
+          app.innerHTML = U.errorHtml(err && err.message ? err.message : 'Error inesperado');
+          U.hideLoading();
+          var retry = document.getElementById('err-retry');
+          if (retry) retry.addEventListener('click', init);
+        }
+        window.scrollTo(0, 0);
+      }
+
+      setTimeout(U.hideLoading, 6000);
+      init();
+    })();
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

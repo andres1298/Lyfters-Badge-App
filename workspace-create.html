@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crear Workspace — Lyfter Badge App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body style="margin:0;background:#15171d;font-family:Manrope,system-ui,sans-serif;">
+  <div id="app"></div>
+  <div id="toast-root" style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;"></div>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+  (function() {
+    var API = window.LyfterAPI;
+    var U   = window.LyfterUtils;
+
+    var user = API.currentUser();
+    if (!user) { window.location.replace('login.html'); return; }
+    if (user.role !== 'god_admin') { window.location.replace('workspace-select.html'); return; }
+
+    var app = document.getElementById('app');
+
+    var styles = '<style>' +
+      '.ws-header{background:rgba(26,29,36,0.88);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid rgba(216,151,231,0.10);padding:16px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;}' +
+      '.ws-title{font-family:Poppins,sans-serif;font-size:20px;font-weight:700;color:#f4f6f9;}' +
+      '.ws-main{margin:0 auto;padding:36px 24px 80px;min-height:100vh;}' +
+      '.ws-card{background:#1c1f27;border:1px solid #2f343f;border-radius:20px;padding:28px 30px;margin-bottom:20px;}' +
+      '.ws-card-title{font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#f4f6f9;margin-bottom:22px;}' +
+      '.ws-label{font-size:11px;font-weight:700;color:#8b93a3;display:block;margin-bottom:6px;font-family:Manrope,sans-serif;letter-spacing:.06em;text-transform:uppercase;}' +
+      '.ws-input{height:48px;border-radius:12px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:15px;padding:0 16px;outline:none;width:100%;box-sizing:border-box;transition:border-color .15s,box-shadow .15s;}' +
+      '.ws-input:focus{border-color:#d897e7;box-shadow:0 0 0 3px rgba(216,151,231,0.18);}' +
+      '.ws-select{height:48px;border-radius:12px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:15px;padding:0 16px;outline:none;appearance:none;cursor:pointer;width:100%;box-sizing:border-box;transition:border-color .15s;}' +
+      '.ws-select:focus{border-color:#d897e7;}' +
+      '.ws-field{margin-bottom:20px;}' +
+      '.ws-hint{font-size:11px;color:#6f7686;margin-top:5px;font-family:Manrope,sans-serif;}' +
+    '</style>';
+
+    app.innerHTML = styles +
+      '<div class="ws-header">' +
+        '<a href="workspace-select.html" style="display:inline-flex;align-items:center;gap:6px;color:#8b93a3;text-decoration:none;font-size:14px;font-family:Manrope,sans-serif;font-weight:600;">' +
+          '<span style="font-size:18px;">←</span> Volver' +
+        '</a>' +
+        '<div class="ws-title" style="margin-left:4px;flex:1;">Crear Workspace</div>' +
+        '<a href="landing.html" style="font-size:12px;font-weight:600;color:#8b93a3;text-decoration:none;padding:5px 10px;border-radius:8px;border:1px solid transparent;transition:color .15s,border-color .15s;font-family:Manrope,sans-serif;" onmouseover="this.style.color=\'#d897e7\';this.style.borderColor=\'rgba(216,151,231,0.25)\'" onmouseout="this.style.color=\'#8b93a3\';this.style.borderColor=\'transparent\'">← Inicio</a>' +
+      '</div>' +
+      '<div class="ws-main">' +
+        '<div class="ws-card">' +
+          '<div class="ws-card-title">Nuevo workspace</div>' +
+
+          '<div class="ws-field">' +
+            '<label class="ws-label" for="ws-name">Nombre del workspace *</label>' +
+            '<input id="ws-name" type="text" class="ws-input" placeholder="Ej: Lyfter Labs" autocomplete="off" />' +
+          '</div>' +
+
+          '<div class="ws-field">' +
+            '<label class="ws-label" for="ws-slug">Slug *</label>' +
+            '<input id="ws-slug" type="text" class="ws-input" placeholder="lyfter-labs" autocomplete="off" />' +
+            '<p class="ws-hint">Se autogenera desde el nombre. Solo letras minúsculas, números y guiones.</p>' +
+          '</div>' +
+
+          '<div class="ws-field">' +
+            '<label class="ws-label">Logo <span style="color:#4a5060;font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>' +
+            '<label for="ws-logo-file" style="display:inline-flex;align-items:center;gap:14px;cursor:pointer;padding:12px 16px;border-radius:12px;border:1.5px dashed #353a46;background:#2e323d;width:100%;box-sizing:border-box;">' +
+              '<div style="width:48px;height:48px;border-radius:10px;background:#262a33;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">' +
+                '<img id="ws-logo-preview" src="" style="width:100%;height:100%;object-fit:cover;display:none;" />' +
+                '<span id="ws-logo-ph" style="font-size:22px;color:#4a5060;line-height:1;">+</span>' +
+              '</div>' +
+              '<span style="font-size:13px;color:#8b93a3;font-family:Manrope,sans-serif;">Seleccionar imagen</span>' +
+            '</label>' +
+            '<input id="ws-logo-file" type="file" accept="image/*" style="display:none;" />' +
+          '</div>' +
+
+          '<button id="btn-create" style="width:100%;height:52px;border-radius:14px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px;box-shadow:0 4px 16px rgba(230,138,141,0.28);transition:opacity .15s;">Crear workspace</button>' +
+        '</div>' +
+      '</div>';
+
+    // Auto-generate slug from name
+    document.getElementById('ws-name').addEventListener('input', function() {
+      var slug = this.value
+        .toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+      document.getElementById('ws-slug').value = slug;
+    });
+
+    document.getElementById('ws-logo-file').addEventListener('change', function() {
+      var file = this.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var preview = document.getElementById('ws-logo-preview');
+        var ph      = document.getElementById('ws-logo-ph');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        if (ph) ph.style.display = 'none';
+        window._logoBase64 = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('btn-create').addEventListener('click', async function() {
+      var name    = document.getElementById('ws-name').value.trim();
+      var slug    = document.getElementById('ws-slug').value.trim();
+      if (!name) { U.toast('El nombre es requerido', 'error'); return; }
+      if (!slug) { U.toast('El slug es requerido', 'error'); return; }
+      if (!/^[a-z0-9-]+$/.test(slug)) { U.toast('El slug solo puede tener letras minúsculas, números y guiones', 'error'); return; }
+
+      var btn = this;
+      btn.disabled = true; btn.textContent = 'Creando...'; btn.style.opacity = '.7';
+
+      try {
+        var body = { name: name, slug: slug };
+        if (window._logoBase64) body.logo_url = window._logoBase64;
+
+        var res = await fetch(API.base + '/workspaces/', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body)
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al crear el workspace');
+        U.toast('Workspace creado correctamente', 'success');
+        setTimeout(function() { window.location.replace('workspace-select.html'); }, 900);
+      } catch(e) {
+        U.toast(e.message, 'error');
+        btn.disabled = false; btn.textContent = 'Crear workspace'; btn.style.opacity = '';
+      }
+    });
+
+  })();
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editar Workspace — Lyfter Badge App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body style="margin:0;background:#15171d;font-family:Manrope,system-ui,sans-serif;">
+  <div id="app"></div>
+  <div id="modal-root"></div>
+  <div id="toast-root" style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;"></div>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+  (function() {
+    var API = window.LyfterAPI;
+    var U   = window.LyfterUtils;
+
+    var user = API.currentUser();
+    if (!user) { window.location.replace('login.html'); return; }
+    if (user.role === 'admin') { window.location.replace('profile.html'); return; }
+    if (['god_admin','superadmin'].indexOf(user.role) === -1) {
+      window.location.replace('workspace-select.html'); return;
+    }
+
+    var wsId = new URLSearchParams(window.location.search).get('ws');
+    if (!wsId) { window.location.replace('workspace-select.html'); return; }
+
+    var isGod = user.role === 'god_admin';
+    window._myRole = user.role;
+    var app   = document.getElementById('app');
+
+    var ROLE_RANK = { participant: 1, admin: 2, superadmin: 3, god_admin: 4 };
+    var _weMembersPage = 0, WE_PAGE = 15;
+
+    function pagerHtml(total, page, size, gotoFn) {
+      if (total <= size) return '';
+      var totalPages = Math.ceil(total / size);
+      var from = page * size + 1;
+      var to = Math.min((page + 1) * size, total);
+      var btns = '';
+      for (var p = 0; p < totalPages; p++) {
+        if (totalPages > 7 && p !== 0 && p !== totalPages - 1 && Math.abs(p - page) > 1) {
+          if (p === page - 2 || p === page + 2) btns += '<span style="color:#4a5060;align-self:center;padding:0 2px;">…</span>';
+          continue;
+        }
+        var active = p === page;
+        btns += '<button onclick="' + gotoFn + '(' + p + ')" style="min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';color:' + (active ? '#d897e7' : '#8b93a3') + ';font-family:Poppins,sans-serif;font-size:13px;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;">' + (p + 1) + '</button>';
+      }
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px;border-top:1px solid #2f343f;margin-top:8px;flex-wrap:wrap;gap:8px;">' +
+        '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;">' + from + '–' + to + ' de ' + total + '</span>' +
+        '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+          (page > 0 ? '<button onclick="' + gotoFn + '(' + (page-1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">←</button>' : '') +
+          btns +
+          (page < totalPages - 1 ? '<button onclick="' + gotoFn + '(' + (page+1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">→</button>' : '') +
+        '</div>' +
+      '</div>';
+    }
+
+    window._goWePage = function(p) { _weMembersPage = p; renderWePage(p); };
+
+    var styles = '<style>' +
+      '.we-header{background:rgba(26,29,36,0.88);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid rgba(216,151,231,0.10);padding:16px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;}' +
+      '.we-title{font-family:Poppins,sans-serif;font-size:20px;font-weight:700;color:#f4f6f9;}' +
+      '.we-main{margin:0 auto;padding:36px 24px 80px;min-height:100vh;}' +
+      '.we-card{background:#1c1f27;border:1px solid #2f343f;border-radius:20px;padding:28px 30px;margin-bottom:20px;}' +
+      '.we-card-title{font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#f4f6f9;margin-bottom:18px;}' +
+      '.we-table{width:100%;border-collapse:collapse;}' +
+      '.we-table th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6f7686;font-weight:700;padding:10px 14px;border-bottom:1px solid #262a33;text-align:left;}' +
+      '.we-table td{padding:12px 14px;border-bottom:1px solid #20242d;font-size:14px;color:#cdd2db;}' +
+      // Última columna (Acciones) con ancho fijo; las columnas de texto absorben el resto y la tabla llena el 100%
+      '.we-table th:last-child,.we-table td:last-child{width:150px;}' +
+      '.we-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#70cfff,#d897e7);display:inline-flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#1c1f27;margin-right:10px;vertical-align:middle;}' +
+      '.we-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;}' +
+      '.we-badge.superadmin{background:rgba(216,151,231,0.15);color:#d897e7;}' +
+      '.we-badge.admin{background:rgba(112,207,255,0.15);color:#70cfff;}' +
+      '.we-badge.participant{background:rgba(171,209,148,0.15);color:#abd194;}' +
+      '.we-badge.god_admin{background:rgba(255,200,80,0.15);color:#ffc850;}' +
+      '.we-input{height:44px;border-radius:10px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:14px;padding:0 14px;outline:none;box-sizing:border-box;}' +
+      '.we-input:focus{border-color:#d897e7;}' +
+      '.we-select{height:44px;border-radius:10px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:14px;padding:0 14px;outline:none;cursor:pointer;}' +
+      '.we-btn{height:40px;padding:0 18px;border-radius:10px;border:none;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}' +
+      '.we-btn.cta{background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;}' +
+      '.we-btn.outline{background:transparent;border:1px solid #353a46;color:#aab1bf;}' +
+      '.we-btn.danger{background:rgba(230,138,141,0.12);border:1px solid rgba(230,138,141,0.30);color:#e68a8d;}' +
+      '.we-btn:hover{opacity:.85;}' +
+      '.we-tabs{display:flex;gap:4px;margin-bottom:20px;}' +
+      '.we-tab{padding:8px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;color:#8b93a3;background:transparent;font-family:Manrope,sans-serif;}' +
+      '.we-tab.active{background:rgba(216,151,231,0.12);border-color:rgba(216,151,231,0.28);color:#f4f6f9;}' +
+      '.we-code-box{background:#20242d;border:1px solid #353a46;border-radius:14px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;}' +
+      '.we-code{font-family:"JetBrains Mono",monospace;font-size:28px;font-weight:600;color:#d897e7;letter-spacing:.2em;}' +
+    '</style>';
+
+    app.innerHTML = styles +
+      '<div class="we-header">' +
+        '<a href="workspace-select.html" style="display:inline-flex;align-items:center;gap:6px;color:#8b93a3;text-decoration:none;font-size:14px;font-family:Manrope,sans-serif;font-weight:600;">' +
+          '<span style="font-size:18px;">←</span> Volver' +
+        '</a>' +
+        '<div class="we-title" id="we-title" style="flex:1;">Editar workspace</div>' +
+        '<a href="landing.html" style="font-size:12px;font-weight:600;color:#8b93a3;text-decoration:none;padding:5px 10px;border-radius:8px;border:1px solid transparent;transition:color .15s,border-color .15s;font-family:Manrope,sans-serif;" onmouseover="this.style.color=\'#d897e7\';this.style.borderColor=\'rgba(216,151,231,0.25)\'" onmouseout="this.style.color=\'#8b93a3\';this.style.borderColor=\'transparent\'">← Inicio</a>' +
+      '</div>' +
+      '<div class="we-main" id="we-main">' +
+        '<div style="display:flex;align-items:center;gap:12px;padding:60px 0;justify-content:center;">' +
+          '<div style="width:32px;height:32px;border-radius:50%;border:3px solid #262a33;border-top-color:#d897e7;animation:spin .7s linear infinite;"></div>' +
+          '<span style="font-size:14px;color:#8b93a3;">Cargando...</span>' +
+        '</div>' +
+        '<style>@keyframes spin{to{transform:rotate(360deg);}}</style>' +
+      '</div>';
+
+    async function init() {
+      try {
+        var wsData, members, invList;
+
+        if (isGod) {
+          var allRes = await fetch(API.base + '/workspaces/', { headers: API.authHeaders() });
+          if (!allRes.ok) throw new Error('No se pudo cargar la lista de workspaces');
+          var allWs = await allRes.json();
+          wsData = allWs.find(function(w) { return w.id === wsId; });
+          if (!wsData) wsData = { id: wsId, name: 'Workspace #' + wsId.slice(-6), slug: '', plan: 'free', my_role: 'god_admin' };
+        } else {
+          var wsRes = await fetch(API.base + '/workspaces/mine', { headers: API.authHeaders() });
+          if (!wsRes.ok) throw new Error('No se pudo cargar el workspace');
+          wsData = await wsRes.json();
+          if (wsData.id !== wsId) { window.location.replace('workspace-select.html'); return; }
+        }
+
+        var memRes = await fetch(API.base + '/workspaces/' + wsId + '/members', { headers: API.authHeaders() });
+        members = memRes.ok ? await memRes.json() : [];
+
+        render(wsData, members, []);
+      } catch(err) {
+        document.getElementById('we-main').innerHTML =
+          '<div style="text-align:center;padding:60px 0;">' +
+            '<div style="margin-bottom:16px;"><img src="assets/icons/ui/icono-alerta.png" style="width:20px;height:20px;object-fit:contain;"></div>' +
+            '<p style="color:#e68a8d;font-size:14px;">' + U.esc(err.message) + '</p>' +
+            '<a href="workspace-select.html" style="display:inline-flex;margin-top:20px;color:#8b93a3;text-decoration:none;font-size:14px;">← Volver</a>' +
+          '</div>';
+      }
+    }
+
+    function render(wsData, members, invList) {
+      var callerRole = isGod ? 'god_admin' : (wsData.my_role || user.role);
+      var callerRank = ROLE_RANK[callerRole] || 0;
+
+      // Update header title
+      var titleEl = document.getElementById('we-title');
+      if (titleEl) titleEl.textContent = wsData.name || 'Editar workspace';
+
+
+      var currentLogo = wsData.logo_url || '';
+      var logoCard =
+        '<div class="we-card">' +
+          '<div class="we-card-title">Logo del workspace</div>' +
+          '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">' +
+            '<div style="width:64px;height:64px;border-radius:12px;background:#262a33;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">' +
+              '<img id="we-logo-preview" src="' + (currentLogo ? U.esc(currentLogo) : '') + '" style="width:100%;height:100%;object-fit:cover;' + (currentLogo ? '' : 'display:none;') + '" />' +
+              '<span id="we-logo-ph" style="font-size:28px;color:#4a5060;line-height:1;' + (currentLogo ? 'display:none;' : '') + '">+</span>' +
+            '</div>' +
+            '<label for="we-logo-file" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border-radius:10px;border:1px solid #353a46;background:#2e323d;font-size:13px;color:#cdd2db;font-family:Manrope,sans-serif;">' +
+              'Subir imagen' +
+            '</label>' +
+            '<input id="we-logo-file" type="file" accept="image/*" style="display:none;" />' +
+            '<button class="we-btn cta" onclick="saveLogo()">Guardar logo</button>' +
+          '</div>' +
+        '</div>';
+
+      document.getElementById('we-main').innerHTML = logoCard +
+
+        '<div class="we-card">' +
+          '<div class="we-card-title">Miembros del workspace</div>' +
+          '<div id="members-list"></div>' +
+          '<p style="font-size:11px;color:#4a5060;margin-top:10px;">' + members.length + ' miembro(s)</p>' +
+        '</div>' +
+
+        '<div class="we-card">' +
+          '<div class="we-card-title">Invitar al workspace</div>' +
+          '<div id="panel-code">' +
+            '<div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">' +
+              '<div>' +
+                '<label style="display:block;font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase;">Rol</label>' +
+                '<select id="code-role" class="we-select">' +
+                  '<option value="admin">Admin</option>' +
+                  (callerRank >= 4 ? '<option value="superadmin">Super Admin</option>' : '') +
+                '</select>' +
+              '</div>' +
+              '<button class="we-btn cta" onclick="generateCode()">Generar código</button>' +
+            '</div>' +
+            '<div id="code-result"></div>' +
+          '</div>' +
+        '</div>' +
+
+        (isGod
+          ? '<div class="we-card" style="border-color:rgba(230,138,141,0.25);">' +
+              '<div class="we-card-title" style="color:#e68a8d;">Zona de peligro</div>' +
+              '<p style="font-size:13px;color:#8b93a3;margin:0 0 16px;">Esta acción es irreversible. Se eliminarán el workspace y todos sus miembros.</p>' +
+              '<button onclick="deleteWorkspace()" style="height:42px;padding:0 20px;border-radius:10px;border:1px solid rgba(230,138,141,0.40);background:rgba(230,138,141,0.10);color:#e68a8d;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity=\'.75\'" onmouseout="this.style.opacity=\'1\'">Eliminar workspace</button>' +
+            '</div>'
+          : '');
+
+      renderMembers(members);
+
+      var logoFileInput = document.getElementById('we-logo-file');
+      if (logoFileInput) {
+        logoFileInput.addEventListener('change', function() {
+          var file = this.files[0];
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            var preview = document.getElementById('we-logo-preview');
+            var ph      = document.getElementById('we-logo-ph');
+            if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+            if (ph) ph.style.display = 'none';
+            window._editLogoBase64 = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      window.saveLogo = async function() {
+        var logo = window._editLogoBase64;
+        if (!logo) { U.toast('Seleccioná una imagen primero', 'error'); return; }
+        try {
+          var res = await fetch(API.base + '/workspaces/' + wsId, {
+            method: 'PATCH',
+            headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ logo_url: logo })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error al guardar');
+          U.toast('Logo actualizado', 'success');
+          window._editLogoBase64 = null;
+        } catch(e) { U.toast(e.message, 'error'); }
+      };
+    }
+
+    window.generateCode = async function() {
+      var role = document.getElementById('code-role').value;
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/invite', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ role: role, method: 'code' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        document.getElementById('code-result').innerHTML =
+          '<div class="we-code-box">' +
+            '<div>' +
+              '<div style="font-size:12px;color:#8b93a3;margin-bottom:8px;">Compartí este código con el invitado:</div>' +
+              '<div class="we-code">' + U.esc(data.code) + '</div>' +
+              '<div style="font-size:12px;color:#6f7686;margin-top:6px;">Rol: ' + role + ' · Expira en 7 días</div>' +
+            '</div>' +
+            '<button class="we-btn outline" onclick="navigator.clipboard.writeText(\'' + U.esc(data.code) + '\').then(function(){ U.toast(\'Código copiado\',\'success\'); })">Copiar</button>' +
+          '</div>';
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    function renderMembers(members) {
+      window._weMembers = members;
+      _weMembersPage = 0;
+      renderWePage(0);
+    }
+
+    function renderWePage(page) {
+      var container = document.getElementById('members-list');
+      if (!container) return;
+      var list = window._weMembers || [];
+      if (!list.length) {
+        container.innerHTML = '<p style="color:#8b93a3;text-align:center;padding:24px;">No hay miembros.</p>';
+        return;
+      }
+      var slice = list.slice(page * WE_PAGE, (page + 1) * WE_PAGE);
+      var html = slice.map(function(m) {
+        var isGod = m.global_role === 'god_admin';
+        var isSuperOrGod = (m.role === 'superadmin' || m.global_role === 'god_admin');
+        var myRole = window._myRole || 'superadmin';
+        var initials = (m.name || '?').split(' ').map(function(w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+        var displayRole = m.global_role === 'god_admin' ? 'god_admin' : m.role;
+        var roleColors = { god_admin: '#ffc850', superadmin: '#d897e7', admin: '#70cfff', participant: '#8b93a3' };
+        var roleColor = roleColors[displayRole] || '#8b93a3';
+
+        return '<div class="we-member-row">' +
+          '<div class="we-member-info">' +
+            '<div class="we-member-avatar">' + initials + '</div>' +
+            '<div style="min-width:0;">' +
+              '<div class="we-member-name">' + U.esc(m.name || '') + '</div>' +
+              '<span class="we-member-role" style="background:' + roleColor + '22;color:' + roleColor + ';">' + displayRole + '</span>' +
+              '<div class="we-member-email">' + U.esc(m.email || '') + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="we-member-actions">' +
+            (isGod
+              ? '<span style="font-size:11px;color:#ffc850;padding:6px 12px;background:rgba(255,200,80,0.1);border:1px solid rgba(255,200,80,0.2);border-radius:8px;">Protegido</span>'
+              : (isSuperOrGod && myRole !== 'god_admin')
+                ? '<span style="font-size:11px;color:#8b93a3;padding:6px 12px;background:rgba(255,255,255,0.04);border:1px solid #2f343f;border-radius:8px;">Sin permisos</span>'
+                : '<button onclick="openMemberRoleModal(\'' + m.user_id + '\',\'' + U.esc(m.name) + '\',\'' + m.role + '\')" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid #353a46;background:rgba(216,151,231,0.1);color:#d897e7;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">Modificar rol</button>' +
+                  '<button onclick="removeMember(\'' + m.user_id + '\',\'' + U.esc(m.name) + '\')" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid #353a46;background:rgba(230,138,141,0.1);color:#e68a8d;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">Eliminar</button>'
+            ) +
+          '</div>' +
+        '</div>';
+      }).join('');
+      container.innerHTML = html + pagerHtml(list.length, page, WE_PAGE, '_goWePage');
+    }
+
+    window.openMemberRoleModal = function(userId, name, currentRole) {
+      var myRole = window._myRole || 'superadmin';
+      var availableRoles = myRole === 'god_admin'
+        ? ['participant', 'admin', 'superadmin']
+        : ['participant', 'admin'];
+      var roleLabels = { participant: 'Participante', admin: 'Admin', superadmin: 'Super Admin' };
+
+      var modal = document.getElementById('modal-root');
+      modal.innerHTML =
+        '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.innerHTML=\'\'">' +
+          '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:20px;padding:24px;width:100%;max-width:340px;" onclick="event.stopPropagation()">' +
+            '<h3 style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0 0 4px;">Modificar rol</h3>' +
+            '<p style="font-size:12px;color:#8b93a3;margin:0 0 20px;">' + U.esc(name) + '</p>' +
+            '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">' +
+              availableRoles.map(function(r) {
+                var active = r === currentRole;
+                return '<button onclick="setMemberRole(\'' + userId + '\',\'' + r + '\')" ' +
+                  'style="padding:12px 16px;border-radius:10px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';' +
+                  'background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';' +
+                  'color:' + (active ? '#d897e7' : '#8b93a3') + ';' +
+                  'font-family:Poppins,sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left;">' +
+                  roleLabels[r] + (active ? ' ✓' : '') + '</button>';
+              }).join('') +
+            '</div>' +
+            '<button onclick="document.getElementById(\'modal-root\').innerHTML=\'\'" ' +
+              'style="width:100%;padding:12px;border-radius:10px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-family:Poppins,sans-serif;font-size:14px;cursor:pointer;">Cancelar</button>' +
+          '</div>' +
+        '</div>';
+    };
+
+    window.setMemberRole = async function(userId, role) {
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/members/' + userId, {
+          method: 'PATCH',
+          headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ role: role })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        document.getElementById('modal-root').innerHTML = '';
+        U.toast('Rol actualizado correctamente', 'success');
+        setTimeout(function() { init(); }, 600);
+      } catch(e) {
+        U.toast(e.message, 'error');
+      }
+    };
+
+    window.deleteWorkspace = async function() {
+      if (!confirm('¿Seguro que querés eliminar este workspace? Esta acción es irreversible.')) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId, {
+          method: 'DELETE',
+          headers: API.authHeaders()
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al eliminar');
+        U.toast('Workspace eliminado', 'success');
+        setTimeout(function() { window.location.replace('workspace-select.html'); }, 900);
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    window.removeMember = async function(uid, name) {
+      if (!confirm('¿Seguro que querés remover a ' + (name || 'este miembro') + '?')) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/' + wsId + '/members/' + uid, {
+          method: 'DELETE',
+          headers: API.authHeaders()
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        U.toast('Miembro removido', 'success');
+        init();
+      } catch(e) { U.toast(e.message, 'error'); }
+    };
+
+    init();
+  })();
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

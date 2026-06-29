@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crear Evento — Lyfter Badge App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="loading-screen">
+    <img src="assets/icons/ui/logo-lyfter.jpeg" alt="Lyfter" />
+    <div class="loader"></div>
+    <span>Cargando...</span>
+  <div id="server-wakeup-notice" style="display:none;margin-top:16px;font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;text-align:center;max-width:240px;">
+    <img src="assets/icons/ui/reloj-de-arena.png" style="width:32px;height:32px;object-fit:contain;display:block;margin:0 auto 6px;opacity:0.7;" />
+    El servidor está despertando...<br>Esto puede tardar hasta 1 minuto.
+  </div>
+  </div>
+  <main id="app"></main>
+  <div id="modal-root"></div>
+  <div id="toast-root" class="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      var TAGS_LIST = ['Desarrollo Web','Mobile','Inteligencia Artificial','Data Science','Ciberseguridad','DevOps','Cloud','Blockchain','UX/UI','Product Management','Emprendimiento','Marketing Digital','Diseño','Videojuegos','Robótica','Fintech','Educación Tech','Open Source','Backend','Frontend'];
+
+      var selectedBadgeIcon = null;
+
+      var API = window.LyfterAPI;
+      var U   = window.LyfterUtils;
+
+      var user = API.currentUser();
+      if (!user) { window.location.replace('login.html'); return; }
+      var ADMIN_ROLES = ['admin','superadmin','god_admin'];
+      if (ADMIN_ROLES.indexOf(user.role) === -1) { window.location.replace('profile.html'); return; }
+
+      var app = document.getElementById('app');
+
+      var INP = 'width:100%;margin-top:4px;padding:10px 14px;font-size:14px;background:#2e323d;border:1px solid #353a46;border-radius:10px;color:#f4f6f9;outline:none;box-sizing:border-box;font-family:Manrope,sans-serif;';
+      var LBL = 'font-size:12px;font-weight:700;color:#8b93a3;font-family:Manrope,sans-serif;display:block;';
+      var CARD = 'background:#1c1f27;border:1px solid #2f343f;border-radius:16px;padding:24px 28px;margin-bottom:20px;';
+
+      var createPendingBadges = [];
+      var createSelectedTags = [];
+
+      function buildInner() {
+        var tagsHtml = TAGS_LIST.map(function(tag) {
+          return '<button type="button" data-ctag="' + U.esc(tag) + '" class="ctag-btn" style="padding:5px 12px;border-radius:999px;font-size:12px;font-family:Manrope,sans-serif;border:1px solid #353a46;background:transparent;color:#8b93a3;cursor:pointer;">' + U.esc(tag) + '</button>';
+        }).join('');
+
+        return (
+          '<div style="display:flex;align-items:center;gap:16px;margin-bottom:28px;">' +
+            '<a href="admin-event.html" style="display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border-radius:10px;border:1px solid #353a46;background:transparent;color:#8b93a3;font-family:Manrope,sans-serif;font-size:14px;font-weight:600;text-decoration:none;">← Volver</a>' +
+            '<h1 style="font-family:Poppins,sans-serif;font-size:22px;font-weight:700;color:#f4f6f9;margin:0;">Crear Evento</h1>' +
+          '</div>' +
+
+          '<div style="' + CARD + '">' +
+            '<p style="font-family:Poppins,sans-serif;font-size:15px;font-weight:700;color:#f4f6f9;margin:0 0 18px;">Información general</p>' +
+            '<form id="event-form" novalidate style="display:flex;flex-direction:column;gap:14px;">' +
+
+              '<div>' +
+                '<label style="' + LBL + '">Nombre del evento *</label>' +
+                '<input type="text" name="name" placeholder="Lyfter Summit 2026" style="' + INP + '" />' +
+              '</div>' +
+
+              '<div>' +
+                '<label style="' + LBL + '">Descripción</label>' +
+                '<textarea name="description" rows="2" placeholder="Descripción breve del evento..." style="' + INP + 'resize:none;"></textarea>' +
+              '</div>' +
+
+              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">' +
+                '<div>' +
+                  '<label style="' + LBL + '">Fecha inicio *</label>' +
+                  '<input type="date" name="start" style="' + INP + '" />' +
+                '</div>' +
+                '<div>' +
+                  '<label style="' + LBL + '">Fecha fin *</label>' +
+                  '<input type="date" name="end" style="' + INP + '" />' +
+                '</div>' +
+              '</div>' +
+
+              '<div>' +
+                '<label style="' + LBL + '">Premio</label>' +
+                '<input type="text" name="prize" placeholder="Entrada VIP al after-party" style="' + INP + '" />' +
+              '</div>' +
+
+              '<div>' +
+                '<label style="' + LBL + '">Ubicación</label>' +
+                '<input id="location-search" type="text" placeholder="Busca el lugar del evento en Costa Rica..." style="' + INP + '" />' +
+                '<div id="location-suggestions" style="border:1px solid #353a46;border-radius:8px;background:#2e323d;margin-top:4px;overflow:hidden;"></div>' +
+                '<div id="location-map" style="height:220px;margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid #353a46;"></div>' +
+                '<div id="location-selected" style="margin-top:8px;display:none;">' +
+                  '<p style="font-size:12px;color:#70cfff;font-family:Manrope,sans-serif;margin:0;"><span id="location-address"></span></p>' +
+                  '<p style="font-size:11px;color:#8b93a3;font-family:Manrope,sans-serif;margin:2px 0 0;">Lat: <span id="location-lat"></span> · Lng: <span id="location-lng"></span></p>' +
+                '</div>' +
+                '<input type="hidden" name="location" id="location-value" />' +
+                '<input type="hidden" name="lat" id="lat-value" />' +
+                '<input type="hidden" name="lng" id="lng-value" />' +
+              '</div>' +
+
+              '<div style="border-top:1px solid #2f343f;padding-top:16px;">' +
+                '<p style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;margin:0 0 12px;">Bonus de XP</p>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">' +
+                  '<div><label style="' + LBL + '">Bonus primer badge</label><input type="number" name="xp_first_scan" min="0" max="1000" value="5" style="' + INP + '" /></div>' +
+                  '<div><label style="' + LBL + '">Bonus badge raro</label><input type="number" name="xp_rare_bonus" min="0" max="1000" value="15" style="' + INP + '" /></div>' +
+                  '<div><label style="' + LBL + '">Bonus completar evento</label><input type="number" name="xp_completion_bonus" min="0" max="1000" value="50" style="' + INP + '" /></div>' +
+                '</div>' +
+              '</div>' +
+
+              '<div style="border-top:1px solid #2f343f;padding-top:16px;">' +
+                '<p style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#f4f6f9;margin:0 0 6px;">Tags</p>' +
+                '<p style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;margin:0 0 10px;">Selecciona las categorías del evento</p>' +
+                '<div id="create-tags-container" style="display:flex;flex-wrap:wrap;gap:6px;">' + tagsHtml + '</div>' +
+              '</div>' +
+
+              '<div style="margin-top:24px;border-top:1px solid #2f343f;padding-top:20px;">' +
+                '<h3 style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0 0 16px;">Badges del Evento</h3>' +
+                '<div id="create-badges-preview" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>' +
+                '<div style="background:#20242d;border:1px solid #2f343f;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;">' +
+                  '<div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;align-items:start;">' +
+                    '<div>' +
+                      '<label style="font-size:11px;font-weight:700;color:#8b93a3;font-family:Manrope,sans-serif;display:block;margin-bottom:6px;">ICONO</label>' +
+                      '<button type="button" id="open-icon-picker" style="width:52px;height:52px;border-radius:10px;border:1px solid #353a46;background:#2e323d;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Elegir icono">' +
+                        '<div id="selected-icon-preview" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;">' +
+                          '<span style="color:#8b93a3;font-size:22px;">+</span>' +
+                        '</div>' +
+                      '</button>' +
+                    '</div>' +
+                    '<div>' +
+                      '<label style="font-size:11px;font-weight:700;color:#8b93a3;font-family:Manrope,sans-serif;display:block;margin-bottom:6px;">NOMBRE *</label>' +
+                      '<input type="text" id="create-badge-name" placeholder="Nombre del badge" style="width:100%;padding:10px 12px;background:#2e323d;border:1px solid #353a46;border-radius:8px;color:#f4f6f9;font-size:13px;outline:none;box-sizing:border-box;font-family:Manrope,sans-serif;" />' +
+                    '</div>' +
+                    '<div>' +
+                      '<label style="font-size:11px;font-weight:700;color:#8b93a3;font-family:Manrope,sans-serif;display:block;margin-bottom:6px;">DESCRIPCIÓN</label>' +
+                      '<input type="text" id="create-badge-desc" placeholder="Descripción opcional" style="width:100%;padding:10px 12px;background:#2e323d;border:1px solid #353a46;border-radius:8px;color:#f4f6f9;font-size:13px;outline:none;box-sizing:border-box;font-family:Manrope,sans-serif;" />' +
+                    '</div>' +
+                  '</div>' +
+                  '<div style="display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:start;">' +
+                    '<div>' +
+                      '<label style="font-size:11px;font-weight:700;color:#8b93a3;font-family:Manrope,sans-serif;display:block;margin-bottom:6px;">XP</label>' +
+                      '<input type="number" id="create-badge-xp" min="1" max="500" value="10" style="width:100%;padding:10px 12px;background:#2e323d;border:1px solid #353a46;border-radius:8px;color:#f4f6f9;font-size:13px;outline:none;box-sizing:border-box;" />' +
+                    '</div>' +
+                    '<div>' +
+                      '<label style="font-size:11px;font-weight:700;color:#8b93a3;font-family:Manrope,sans-serif;display:block;margin-bottom:6px;">RAREZA</label>' +
+                      '<div style="display:flex;gap:8px;">' +
+                        '<button type="button" data-rarity="normal" class="rarity-btn" style="flex:1;padding:10px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-size:12px;font-weight:700;cursor:pointer;font-family:Manrope,sans-serif;">Normal</button>' +
+                        '<button type="button" data-rarity="rare" class="rarity-btn" style="flex:1;padding:10px;border-radius:8px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-size:12px;font-weight:700;cursor:pointer;font-family:Manrope,sans-serif;">Raro</button>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<button type="button" id="create-add-badge-btn" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">+ Agregar badge</button>' +
+                '</div>' +
+              '</div>' +
+
+              '<button type="submit" id="create-btn" style="width:100%;height:50px;border-radius:13px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;">Crear evento</button>' +
+            '</form>' +
+          '</div>'
+        );
+      }
+
+      function renderPage() {
+        app.innerHTML = U.adminShell('event', buildInner(), [], null);
+        U.mountAdminShell();
+        U.hideLoading();
+        initLocationPicker();
+        initTagButtons();
+        initBadgeForm();
+        initCreateForm();
+      }
+
+      function initLocationPicker() {
+        var mapDiv = document.getElementById('location-map');
+        if (!mapDiv || !window.L) return;
+
+        var map = L.map('location-map').setView([9.7489, -83.7534], 8);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        var marker = null;
+
+        function setLocation(lat, lng, address) {
+          document.getElementById('location-value').value = address;
+          document.getElementById('lat-value').value = lat;
+          document.getElementById('lng-value').value = lng;
+          document.getElementById('location-selected').style.display = 'block';
+          document.getElementById('location-address').textContent = address;
+          document.getElementById('location-lat').textContent = parseFloat(lat).toFixed(6);
+          document.getElementById('location-lng').textContent = parseFloat(lng).toFixed(6);
+        }
+
+        var searchInput = document.getElementById('location-search');
+        var searchTimeout = null;
+
+        searchInput.addEventListener('input', function() {
+          clearTimeout(searchTimeout);
+          var q = searchInput.value.trim();
+          if (q.length < 3) return;
+          searchTimeout = setTimeout(async function() {
+            try {
+              var res = await fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q + ' Costa Rica') + '&format=json&limit=5&countrycodes=cr');
+              var results = await res.json();
+              var suggestions = document.getElementById('location-suggestions');
+              if (!results.length) { suggestions.innerHTML = ''; return; }
+              suggestions.innerHTML = results.map(function(r, idx) {
+                return '<div data-idx="' + idx + '" class="loc-sug" style="padding:10px 14px;font-size:13px;color:#f4f6f9;font-family:Manrope,sans-serif;cursor:pointer;border-bottom:1px solid #353a46;">' + r.display_name + '</div>';
+              }).join('');
+              Array.prototype.forEach.call(suggestions.querySelectorAll('.loc-sug'), function(el) {
+                el.addEventListener('mouseenter', function() { el.style.background = '#353a46'; });
+                el.addEventListener('mouseleave', function() { el.style.background = ''; });
+                el.addEventListener('click', function() {
+                  var r = results[parseInt(el.getAttribute('data-idx'))];
+                  var lat = parseFloat(r.lat);
+                  var lng = parseFloat(r.lon);
+                  map.setView([lat, lng], 15);
+                  if (marker) marker.setLatLng([lat, lng]);
+                  else {
+                    marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                    marker.on('dragend', function() {
+                      var pos = marker.getLatLng();
+                      document.getElementById('lat-value').value = pos.lat;
+                      document.getElementById('lng-value').value = pos.lng;
+                      document.getElementById('location-lat').textContent = pos.lat.toFixed(6);
+                      document.getElementById('location-lng').textContent = pos.lng.toFixed(6);
+                    });
+                  }
+                  setLocation(lat, lng, r.display_name);
+                  searchInput.value = r.display_name.split(',')[0];
+                  suggestions.innerHTML = '';
+                });
+              });
+            } catch(e) {}
+          }, 500);
+        });
+
+        map.on('click', async function(e) {
+          var lat = e.latlng.lat;
+          var lng = e.latlng.lng;
+          if (marker) marker.setLatLng([lat, lng]);
+          else {
+            marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+            marker.on('dragend', function() {
+              var pos = marker.getLatLng();
+              document.getElementById('lat-value').value = pos.lat;
+              document.getElementById('lng-value').value = pos.lng;
+              document.getElementById('location-lat').textContent = pos.lat.toFixed(6);
+              document.getElementById('location-lng').textContent = pos.lng.toFixed(6);
+            });
+          }
+          try {
+            var res = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng + '&format=json');
+            var data = await res.json();
+            setLocation(lat, lng, data.display_name || (lat.toFixed(4) + ', ' + lng.toFixed(4)));
+          } catch(e) {
+            setLocation(lat, lng, lat.toFixed(4) + ', ' + lng.toFixed(4));
+          }
+        });
+      }
+
+      function initTagButtons() {
+        Array.prototype.forEach.call(document.querySelectorAll('.ctag-btn'), function(btn) {
+          btn.addEventListener('click', function() {
+            var tag = btn.getAttribute('data-ctag');
+            var idx = createSelectedTags.indexOf(tag);
+            if (idx === -1) {
+              createSelectedTags.push(tag);
+              btn.style.background = 'rgba(216,151,231,0.2)';
+              btn.style.color = '#d897e7';
+              btn.style.borderColor = 'rgba(216,151,231,0.6)';
+            } else {
+              createSelectedTags.splice(idx, 1);
+              btn.style.background = '';
+              btn.style.color = '#8b93a3';
+              btn.style.borderColor = '#353a46';
+            }
+          });
+        });
+      }
+
+      function initBadgeForm() {
+        var selectedRarity = 'normal';
+        var selectedBadgeIcon = null;
+
+        var RARITY_COLORS = {
+          normal: { border: '#38bdf8', bg: 'rgba(56,189,248,0.1)', color: '#38bdf8' },
+          rare:   { border: '#ffc850', bg: 'rgba(255,200,80,0.15)', color: '#ffc850' }
+        };
+
+        Array.prototype.forEach.call(document.querySelectorAll('.rarity-btn'), function(btn) {
+          btn.addEventListener('click', function() {
+            selectedRarity = btn.getAttribute('data-rarity');
+            Array.prototype.forEach.call(document.querySelectorAll('.rarity-btn'), function(b) {
+              b.style.border = '1px solid #353a46';
+              b.style.background = '#2e323d';
+              b.style.color = '#f4f6f9';
+            });
+            var rc = RARITY_COLORS[selectedRarity];
+            btn.style.border = '1px solid ' + rc.border;
+            btn.style.background = rc.bg;
+            btn.style.color = rc.color;
+          });
+        });
+
+        var defaultRarityBtn = document.querySelector('.rarity-btn[data-rarity="normal"]');
+        if (defaultRarityBtn) {
+          defaultRarityBtn.style.border = '1px solid #38bdf8';
+          defaultRarityBtn.style.background = 'rgba(56,189,248,0.1)';
+          defaultRarityBtn.style.color = '#38bdf8';
+        }
+
+        document.getElementById('open-icon-picker').addEventListener('click', function() {
+          var modalRoot = document.getElementById('modal-root');
+          modalRoot.innerHTML =
+            '<div class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:rgba(0,0,0,0.75);" id="icon-picker-overlay">' +
+              '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:16px;padding:24px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;">' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+                  '<p style="font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#f4f6f9;margin:0;">Selecciona un icono</p>' +
+                  '<button id="close-icon-picker" style="background:transparent;border:none;color:#8b93a3;font-size:20px;cursor:pointer;line-height:1;">✕</button>' +
+                '</div>' +
+                '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">' +
+                  U.BOOTSTRAP_BADGE_ICONS.map(function(icon) {
+                    return '<button type="button" data-icon="bi:' + icon.cls + '" class="icon-option" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:10px;border:1px solid #353a46;background:#2e323d;cursor:pointer;">' +
+                      '<i class="bi ' + icon.cls + '" style="font-size:30px;line-height:1;color:#f4f6f9;"></i>' +
+                      '<span style="font-size:10px;color:#8b93a3;font-family:Manrope,sans-serif;text-align:center;">' + icon.label + '</span>' +
+                    '</button>';
+                  }).join('') +
+                '</div>' +
+              '</div>' +
+            '</div>';
+
+          document.getElementById('close-icon-picker').addEventListener('click', function() { modalRoot.innerHTML = ''; });
+          document.getElementById('icon-picker-overlay').addEventListener('click', function(ev) {
+            if (ev.target === this) modalRoot.innerHTML = '';
+          });
+
+          Array.prototype.forEach.call(document.querySelectorAll('.icon-option'), function(btn) {
+            btn.addEventListener('click', function() {
+              selectedBadgeIcon = btn.getAttribute('data-icon');
+              document.getElementById('selected-icon-preview').innerHTML = U.badgeIcon(selectedBadgeIcon, 36);
+              modalRoot.innerHTML = '';
+            });
+          });
+        });
+
+        var rarityColors = {
+          normal: { bg: 'rgba(56,189,248,0.05)', border: '#38bdf8', label: 'Normal', labelColor: '#38bdf8' },
+          rare:   { bg: 'rgba(255,200,80,0.08)', border: '#ffc850', label: 'RARO', labelColor: '#ffc850' }
+        };
+
+        document.getElementById('create-add-badge-btn').addEventListener('click', function() {
+          var name = document.getElementById('create-badge-name').value.trim();
+          if (!name) { U.toast('Ingresa un nombre para el badge', 'error'); return; }
+
+          var badge = {
+            name: name,
+            desc: document.getElementById('create-badge-desc').value.trim(),
+            icon_url: selectedBadgeIcon || null,
+            emoji: selectedBadgeIcon ? null : '',
+            xp_value: parseInt(document.getElementById('create-badge-xp').value, 10) || 10,
+            rarity: selectedRarity,
+            is_rare: selectedRarity !== 'normal'
+          };
+          createPendingBadges.push(badge);
+
+          document.getElementById('create-badges-preview').innerHTML = createPendingBadges.map(function(b, i) {
+            var brc = rarityColors[b.rarity] || rarityColors.normal;
+            return '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;border:1px solid ' + brc.border + ';background:' + brc.bg + ';">' +
+              '<div style="width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">' +
+                (b.icon_url ? U.badgeIcon(b.icon_url, 32) : '<img src="assets/icons/ui/icono-reclamado.png" style="width:24px;height:24px;object-fit:contain;">') +
+              '</div>' +
+              '<div style="flex:1;min-width:0;">' +
+                '<p style="font-family:Poppins,sans-serif;font-size:13px;font-weight:600;color:#f4f6f9;margin:0;">' + U.esc(b.name) + '</p>' +
+                '<p style="font-size:11px;color:#8b93a3;margin:2px 0 0;font-family:Manrope,sans-serif;">' + b.xp_value + ' XP · <span style="color:' + brc.labelColor + ';">' + brc.label + '</span></p>' +
+              '</div>' +
+              '<button type="button" data-idx="' + i + '" class="remove-badge-btn" style="background:transparent;border:none;color:#e68a8d;font-size:16px;cursor:pointer;padding:4px;">✕</button>' +
+            '</div>';
+          }).join('');
+
+          Array.prototype.forEach.call(document.querySelectorAll('.remove-badge-btn'), function(rbtn) {
+            rbtn.addEventListener('click', function() {
+              createPendingBadges.splice(parseInt(rbtn.getAttribute('data-idx')), 1);
+              rbtn.closest('[class="remove-badge-btn"]') || rbtn.parentElement.parentElement.remove();
+            });
+          });
+
+          document.getElementById('create-badge-name').value = '';
+          document.getElementById('create-badge-desc').value = '';
+          document.getElementById('create-badge-xp').value = '10';
+          selectedBadgeIcon = null;
+          selectedRarity = 'normal';
+          document.getElementById('selected-icon-preview').innerHTML = '<span style="color:#8b93a3;font-size:22px;">+</span>';
+          Array.prototype.forEach.call(document.querySelectorAll('.rarity-btn'), function(b) {
+            b.style.border = '1px solid #353a46';
+            b.style.background = '#2e323d';
+            b.style.color = '#f4f6f9';
+          });
+          // Volver a marcar Normal como seleccionado en azul
+          var normalBtn = document.querySelector('.rarity-btn[data-rarity="normal"]');
+          if (normalBtn) {
+            normalBtn.style.border = '1px solid #38bdf8';
+            normalBtn.style.background = 'rgba(56,189,248,0.1)';
+            normalBtn.style.color = '#38bdf8';
+          }
+        });
+      }
+
+      function initCreateForm() {
+        var form = document.getElementById('event-form');
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          var nameField = form.elements['name'];
+          var ok = true;
+          ok = U.setFieldError(nameField, nameField.value.trim() ? '' : 'Ingresa un nombre') && ok;
+          ok = U.setFieldError(form.elements['start'], form.elements['start'].value ? '' : 'Selecciona fecha de inicio') && ok;
+          ok = U.setFieldError(form.elements['end'], form.elements['end'].value ? '' : 'Selecciona fecha de fin') && ok;
+          if (!ok) return;
+          var btn = document.getElementById('create-btn');
+          btn.disabled = true; btn.textContent = 'Creando...';
+          try {
+            var created = await API.createEvent({
+              name: nameField.value.trim(),
+              description: form.elements['description'].value.trim(),
+              start: form.elements['start'].value,
+              end: form.elements['end'].value,
+              prize: form.elements['prize'].value.trim(),
+              location: document.getElementById('location-value').value,
+              xp_first_scan: parseInt(form.elements['xp_first_scan'].value, 10),
+              xp_rare_bonus: parseInt(form.elements['xp_rare_bonus'].value, 10),
+              xp_completion_bonus: parseInt(form.elements['xp_completion_bonus'].value, 10)
+            });
+            var saves = [];
+            if (createSelectedTags.length) saves.push(API.updateEventTags(created.id, createSelectedTags));
+            for (var i = 0; i < createPendingBadges.length; i++) {
+              saves.push(API.addBadge(created.id, createPendingBadges[i]));
+            }
+            await Promise.all(saves);
+            var latVal = document.getElementById('lat-value').value;
+            var lngVal = document.getElementById('lng-value').value;
+            if (latVal && lngVal) {
+              await API.updateEventCoordinates(created.id, parseFloat(latVal), parseFloat(lngVal));
+            }
+            U.setActiveId(created.id);
+            U.toast('Evento creado correctamente', 'success');
+            window.location.href = 'admin-event-detail.html?id=' + created.id;
+          } catch(err) {
+            U.toast(err.message || 'Error', 'error');
+            btn.disabled = false; btn.textContent = 'Crear evento';
+          }
+        });
+      }
+
+      setTimeout(U.hideLoading, 6000);
+      renderPage();
+    })();
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

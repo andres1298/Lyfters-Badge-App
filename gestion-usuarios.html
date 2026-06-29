@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestión de Usuarios — Lyfter Badge App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body style="margin:0;background:#15171d;font-family:Manrope,system-ui,sans-serif;">
+  <div id="app"></div>
+  <div id="toast-root" style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;"></div>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+  (function() {
+    var API = window.LyfterAPI;
+    var U   = window.LyfterUtils;
+
+    var user = API.currentUser();
+    if (!user) { window.location.replace('login.html'); return; }
+    if (user.role !== 'god_admin') { window.location.replace('workspace-select.html'); return; }
+
+    var app = document.getElementById('app');
+
+    function toast(msg, type) { U.toast(msg, type); }
+
+    var styles = '<style>' +
+      '.gu-header{background:#1a1d24;border-bottom:1px solid #262a33;padding:16px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;}' +
+      '.gu-title{font-family:Poppins,sans-serif;font-size:20px;font-weight:700;color:#f4f6f9;}' +
+      '.gu-main{position:relative;z-index:1;margin:0 auto;padding:36px 24px 80px;min-height:100vh;}' +
+      '.gu-card{background:#1c1f27;border:1px solid #2f343f;border-radius:20px;padding:28px 30px;margin-bottom:20px;}' +
+      '.gu-card-title{font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#f4f6f9;margin-bottom:18px;}' +
+      '.gu-input{height:40px;border-radius:10px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:13px;padding:0 12px;outline:none;box-sizing:border-box;}' +
+      '.gu-input:focus{border-color:#d897e7;}' +
+      '.gu-select{height:40px;border-radius:10px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:13px;padding:0 12px;outline:none;cursor:pointer;width:100%;box-sizing:border-box;}' +
+      '.gu-table{width:100%;border-collapse:collapse;}' +
+      '.gu-table th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6f7686;font-weight:700;padding:10px 14px;border-bottom:1px solid #262a33;text-align:left;}' +
+      '.gu-table td{padding:12px 14px;border-bottom:1px solid #20242d;font-size:14px;color:#cdd2db;}' +
+      // Columna Acciones con ancho fijo en desktop; las columnas de texto absorben el resto y la tabla llena el 100%
+      '@media (min-width:641px){.gu-table th:last-child,.gu-table td:last-child{width:170px;}}' +
+      '.gu-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#70cfff,#d897e7);display:inline-flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#1c1f27;margin-right:10px;vertical-align:middle;}' +
+      // Móvil (≤640px): cada fila de la tabla se apila como card con todo visible
+      '@media (max-width:640px){' +
+        '.gu-header{padding:14px 16px;}' +
+        '.gu-main{padding:24px 14px 80px;}' +
+        '.gu-card{padding:20px 16px;}' +
+        '.gu-table thead{display:none;}' +
+        '.gu-table,.gu-table tbody,.gu-table tr,.gu-table td{display:block;width:100%;}' +
+        '.gu-table tr{background:#20242d;border:1px solid #2f343f;border-radius:14px;padding:14px 16px;margin-bottom:14px;}' +
+        '.gu-table td{border-bottom:none;padding:5px 0;}' +
+        '.gu-table td:first-child{font-size:15px;font-weight:600;color:#f4f6f9;margin-bottom:4px;}' +
+      '}' +
+    '</style>';
+
+    app.innerHTML = styles +
+
+      '<div class="gu-header">' +
+        '<a href="workspace-select.html" style="display:inline-flex;align-items:center;gap:6px;color:#8b93a3;text-decoration:none;font-size:14px;font-family:Manrope,sans-serif;font-weight:600;">' +
+          '<span style="font-size:18px;">←</span> Volver' +
+        '</a>' +
+        '<img src="assets/icons/ui/icono-usuarios.png" style="width:24px;height:24px;object-fit:contain;opacity:.8;margin-left:4px;" />' +
+        '<div class="gu-title">Gestión de usuarios</div>' +
+      '</div>' +
+
+      '<div class="gu-main">' +
+
+        '<div class="gu-card" style="border-color:rgba(255,200,80,0.25);background:linear-gradient(135deg,rgba(255,200,80,0.05),rgba(216,151,231,0.03)),#1c1f27;">' +
+          '<div class="gu-card-title" style="color:#ffc850;">⚡ Herramientas God Admin</div>' +
+          '<div style="background:#20242d;border:1px solid #2a2e38;border-radius:14px;padding:20px;">' +
+            '<div style="font-size:13px;font-weight:700;color:#f4f6f9;margin-bottom:6px;">Código de creación de workspace</div>' +
+            '<div style="font-size:12px;color:#8b93a3;margin-bottom:14px;">Genera un código de un solo uso que permite a un admin crear un nuevo workspace.</div>' +
+            '<button id="btn-gen-creation-code" onclick="genCreationCode()" style="height:40px;padding:0 16px;border-radius:10px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Generar código</button>' +
+            '<div id="creation-code-result" style="margin-top:12px;"></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="gu-card" style="background:#1c1f27;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;">' +
+            '<div class="gu-card-title" style="margin-bottom:0;display:flex;align-items:center;gap:6px;"><img src="assets/icons/ui/icono-usuarios.png" style="width:18px;height:18px;object-fit:contain;"> Usuarios de la plataforma</div>' +
+            '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+              '<input id="users-search" type="text" placeholder="Buscar por nombre o email..." oninput="filterPlatformUsers(this.value)" class="gu-input" style="width:220px;" />' +
+              '<button id="toggle-select-mode" onclick="toggleSelectMode()" style="height:36px;padding:0 16px;border-radius:10px;border:1px solid #353a46;background:transparent;color:#aab1bf;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor=\'#d897e7\';this.style.color=\'#d897e7\'" onmouseout="if(!_selectMode){this.style.borderColor=\'#353a46\';this.style.color=\'#aab1bf\'}">☑ Seleccionar</button>' +
+              '<button onclick="loadPlatformUsers()" style="height:36px;padding:0 16px;border-radius:8px;border:1px solid #353a46;background:transparent;color:#aab1bf;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Cargar usuarios</button>' +
+            '</div>' +
+          '</div>' +
+          '<div id="platform-users-list">' +
+            '<p style="font-size:13px;color:#6f7686;text-align:center;padding:24px 0;">Hacé clic en "Cargar usuarios" para ver la lista.</p>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="gu-card" style="border-color:rgba(112,207,255,0.25);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;">' +
+            '<div class="gu-card-title" style="margin-bottom:0;color:#70cfff;display:flex;align-items:center;gap:8px;">' +
+              '<img src="assets/icons/ui/icono-candado.png" style="width:18px;height:18px;object-fit:contain;opacity:.85;" /> IPs Baneadas' +
+            '</div>' +
+            '<button onclick="loadIpBans()" style="height:36px;padding:0 14px;border-radius:8px;border:1px solid rgba(112,207,255,0.3);background:rgba(112,207,255,0.08);color:#70cfff;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">' +
+              '<img src="assets/icons/ui/icono-reclamado.png" style="width:14px;height:14px;object-fit:contain;opacity:.8;" /> Actualizar' +
+            '</button>' +
+          '</div>' +
+
+          '<div style="background:#20242d;border:1px solid #2a2e38;border-radius:14px;padding:20px;margin-bottom:16px;">' +
+            '<div style="font-size:13px;font-weight:700;color:#f4f6f9;margin-bottom:14px;">Banear IP manualmente</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">' +
+              '<div style="flex:1;min-width:130px;">' +
+                '<div style="font-size:11px;font-weight:700;color:#6f7686;margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase;">Dirección IP</div>' +
+                '<input id="manual-ban-ip" type="text" placeholder="Ej: 190.1.2.3" class="gu-input" style="width:100%;" />' +
+              '</div>' +
+              '<div style="flex:2;min-width:160px;">' +
+                '<div style="font-size:11px;font-weight:700;color:#6f7686;margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase;">Razón</div>' +
+                '<input id="manual-ban-reason" type="text" placeholder="Motivo del baneo..." class="gu-input" style="width:100%;" />' +
+              '</div>' +
+              '<div style="min-width:120px;">' +
+                '<div style="font-size:11px;font-weight:700;color:#6f7686;margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase;">Duración</div>' +
+                '<select id="manual-ban-days" class="gu-select">' +
+                  '<option value="1">1 día</option>' +
+                  '<option value="7">7 días</option>' +
+                  '<option value="30">30 días</option>' +
+                  '<option value="perm">Permanente</option>' +
+                '</select>' +
+              '</div>' +
+              '<button onclick="banIpManual()" style="height:40px;padding:0 18px;border-radius:10px;border:1px solid rgba(112,207,255,0.35);background:rgba(112,207,255,0.1);color:#70cfff;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;">' +
+                '<img src="assets/icons/ui/icono-candado.png" style="width:14px;height:14px;object-fit:contain;opacity:.85;" /> Banear IP' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+
+          '<div id="ip-bans-list">' +
+            '<p style="font-size:13px;color:#6f7686;text-align:center;padding:24px 0;">Hacé clic en "Actualizar" para ver las IPs baneadas.</p>' +
+          '</div>' +
+        '</div>' +
+
+      '</div>';
+
+    window.genCreationCode = async function() {
+      var btn = document.getElementById('btn-gen-creation-code');
+      var out = document.getElementById('creation-code-result');
+      if (!btn || !out) return;
+      btn.disabled = true; btn.textContent = 'Generando...';
+      try {
+        var res = await fetch(API.base + '/workspaces/creation-code', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
+        });
+        var data = {};
+        try { data = await res.json(); } catch(je) { throw new Error('Error del servidor (estado ' + res.status + ').'); }
+        if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
+        var exp = data.expires_at ? new Date(data.expires_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) : '';
+        out.innerHTML =
+          '<div style="background:#15171d;border:1px solid rgba(255,200,80,0.25);border-radius:10px;padding:12px 16px;margin-top:4px;">' +
+            '<div style="font-size:11px;color:#8b93a3;margin-bottom:4px;">Código de un solo uso · expira ' + exp + '</div>' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+              '<code style="font-family:\'JetBrains Mono\',monospace;font-size:20px;font-weight:700;color:#ffc850;letter-spacing:.15em;">' + U.esc(data.code) + '</code>' +
+              '<button onclick="navigator.clipboard.writeText(\'' + U.esc(data.code) + '\').then(function(){ toast(\'Copiado\',\'success\'); })" style="height:30px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,200,80,0.3);background:rgba(255,200,80,0.1);color:#ffc850;font-size:12px;cursor:pointer;">Copiar</button>' +
+            '</div>' +
+          '</div>';
+        toast('Código generado', 'success');
+      } catch(e) { toast(e.message, 'error'); }
+      btn.disabled = false; btn.textContent = 'Generar código';
+    };
+
+    var _platformUsersCache = [];
+    var _allWsCache = [];
+    var _guPage = 0, GU_PAGE = 15;
+    var _selectMode = false;
+    var _selectedUsers = new Set();
+    var MAX_SELECTION = 25;
+
+    function pagerHtml(total, page, size, gotoFn) {
+      if (total <= size) return '';
+      var totalPages = Math.ceil(total / size);
+      var from = page * size + 1;
+      var to = Math.min((page + 1) * size, total);
+      var btns = '';
+      for (var p = 0; p < totalPages; p++) {
+        if (totalPages > 7 && p !== 0 && p !== totalPages - 1 && Math.abs(p - page) > 1) {
+          if (p === page - 2 || p === page + 2) btns += '<span style="color:#4a5060;align-self:center;padding:0 2px;">…</span>';
+          continue;
+        }
+        var active = p === page;
+        btns += '<button onclick="' + gotoFn + '(' + p + ')" style="min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';color:' + (active ? '#d897e7' : '#8b93a3') + ';font-family:Poppins,sans-serif;font-size:13px;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;">' + (p + 1) + '</button>';
+      }
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px;border-top:1px solid #2f343f;margin-top:8px;flex-wrap:wrap;gap:8px;">' +
+        '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;">' + from + '–' + to + ' de ' + total + '</span>' +
+        '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+          (page > 0 ? '<button onclick="' + gotoFn + '(' + (page-1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">←</button>' : '') +
+          btns +
+          (page < totalPages - 1 ? '<button onclick="' + gotoFn + '(' + (page+1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">→</button>' : '') +
+        '</div>' +
+      '</div>';
+    }
+
+    window._goGuPage = function(p) { _guPage = p; renderGuPage(window._guList, p); };
+
+    window.loadPlatformUsers = async function() {
+      if (_selectMode) toggleSelectMode();
+      _selectedUsers.clear();
+      var container = document.getElementById('platform-users-list');
+      if (!container) return;
+      container.innerHTML = '<p style="font-size:13px;color:#8b93a3;text-align:center;padding:20px;">Cargando...</p>';
+      try {
+        var wsRes = await fetch(window.LyfterAPI.base + '/workspaces/', { headers: window.LyfterAPI.authHeaders() });
+        var wsData = await wsRes.json();
+        if (wsRes.ok) _allWsCache = wsData;
+        var res = await fetch(window.LyfterAPI.base + '/workspaces/platform/users', { headers: window.LyfterAPI.authHeaders() });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        _platformUsersCache = data;
+        renderPlatformUsers(data);
+      } catch(e) {
+        container.innerHTML = '<p style="color:#e68a8d;font-size:13px;text-align:center;padding:20px;">Error: ' + (e.message || 'Error') + '</p>';
+      }
+    };
+
+    window.filterPlatformUsers = function(q) {
+      if (!_platformUsersCache.length) return;
+      var term = q.toLowerCase().trim();
+      var filtered = term.length < 2 ? _platformUsersCache : _platformUsersCache.filter(function(u) {
+        return (u.name  || '').toLowerCase().includes(term) ||
+               (u.email || '').toLowerCase().includes(term);
+      });
+      _guPage = 0;
+      renderPlatformUsers(filtered);
+    };
+
+    function renderPlatformUsers(list) {
+      window._guList = list;
+      _guPage = 0;
+      renderGuPage(list, 0);
+    }
+
+    function renderGuPage(list, page) {
+      var container = document.getElementById('platform-users-list');
+      if (!container) return;
+      if (!list.length) {
+        container.innerHTML = '<p style="font-size:13px;color:#6f7686;text-align:center;padding:20px;">No se encontraron usuarios.</p>';
+        return;
+      }
+      var slice = list.slice(page * GU_PAGE, (page + 1) * GU_PAGE);
+      var rows = slice.map(function(u) {
+        var initials = (u.name || '?').split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
+        var roleColors = { god_admin: '#ffc850', superadmin: '#d897e7', admin: '#70cfff', participant: '#8b93a3' };
+        var roleColor = roleColors[u.role] || '#8b93a3';
+        var statusBadge = u.banned
+          ? '<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(230,138,141,0.15);color:#e68a8d;border:1px solid rgba(230,138,141,0.2);">Baneado' + (u.ban_permanent ? ' ∞' : '') + '</span>' +
+            (u.ban_ip ? ' <span style="font-size:10px;color:#6f7686;">IP: ' + U.esc(u.ban_ip) + '</span>' : '')
+          : '<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(171,209,148,0.15);color:#abd194;">Activo</span>';
+        var safeName = u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        var safeEmail = (u.email || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+        var isMyGrantor = u.granted_by && u.granted_by === user.id;
+        var actions;
+        if (u.role === 'god_admin') {
+          var isMyGrantee = user.granted_by && user.granted_by === u.id;
+          var isMyGrantor = u.granted_by && u.granted_by === user.id;
+          if (isMyGrantee) {
+            actions = '<span style="font-size:11px;color:#ffc850;padding:4px 10px;background:rgba(255,200,80,0.1);border:1px solid rgba(255,200,80,0.2);border-radius:6px;">Protegido — te otorgó el permiso</span>';
+          } else if (isMyGrantor) {
+            actions = '<span style="font-size:11px;color:#ffc850;padding:4px 10px;background:rgba(255,200,80,0.1);border:1px solid rgba(255,200,80,0.2);border-radius:6px;">Le otorgaste el permiso</span>' +
+              '<button onclick="openRoleModal(\'' + u.id + '\',\'' + safeName + '\',\'' + safeEmail + '\')" style="height:30px;padding:0 12px;border-radius:8px;border:1px solid rgba(216,151,231,0.3);background:rgba(216,151,231,0.12);color:#d897e7;cursor:pointer;font-size:12px;">Modificar rol</button>';
+          } else {
+            actions = '<span style="font-size:11px;color:#ffc850;padding:4px 10px;background:rgba(255,200,80,0.1);border:1px solid rgba(255,200,80,0.2);border-radius:6px;">God Admin global</span>';
+          }
+        } else {
+          var banBtn = u.banned
+            ? '<button onclick="unbanPlatformUser(\'' + u.id + '\')" style="width:120px;height:30px;box-sizing:border-box;text-align:center;font-size:12px;padding:0 12px;border-radius:8px;border:1px solid #353a46;background:transparent;color:#aab1bf;cursor:pointer;">Desbanear</button>'
+            : '<button onclick="openBanModal(\'' + u.id + '\',\'' + safeName + '\')" style="width:120px;height:30px;box-sizing:border-box;text-align:center;font-size:12px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,200,80,0.3);background:rgba(255,200,80,0.1);color:#ffc850;cursor:pointer;">Banear</button>';
+          var roleBtn = '<button onclick="openRoleModal(\'' + u.id + '\',\'' + safeName + '\',\'' + safeEmail + '\')" style="width:120px;height:30px;box-sizing:border-box;text-align:center;font-size:12px;padding:0 12px;border-radius:8px;border:1px solid rgba(216,151,231,0.3);background:rgba(216,151,231,0.12);color:#d897e7;cursor:pointer;">Modificar rol</button>';
+          var deleteBtn = '<button onclick="deletePlatformUser(\'' + u.id + '\',\'' + safeName + '\')" style="width:120px;height:30px;box-sizing:border-box;text-align:center;font-size:12px;padding:0 12px;border-radius:8px;border:1px solid rgba(230,138,141,0.30);background:rgba(230,138,141,0.12);color:#e68a8d;cursor:pointer;">Eliminar</button>';
+          actions = banBtn + roleBtn + deleteBtn;
+        }
+
+        return '<div class="we-member-row" style="display:flex;align-items:center;">' +
+          '<div class="user-select-col" style="display:' + (_selectMode ? 'flex' : 'none') + ';align-items:center;padding-right:12px;flex-shrink:0;">' +
+            '<input type="checkbox" class="user-checkbox" data-uid="' + u.id + '"' + (_selectedUsers.has(u.id) ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:#d897e7;cursor:pointer;" onchange="onUserCheckboxChange(this)">' +
+          '</div>' +
+          '<div class="we-member-info" style="flex:1;min-width:0;">' +
+            '<div class="we-member-avatar">' + initials + '</div>' +
+            '<div style="min-width:0;">' +
+              '<div class="we-member-name">' + U.esc(u.name || '—') + '</div>' +
+              '<span class="we-member-role" style="background:' + roleColor + '22;color:' + roleColor + ';">' + (u.role || '') + '</span>' +
+              '<div class="we-member-email">' + U.esc(u.email || '—') + '</div>' +
+              '<div style="margin-top:4px;">' + statusBadge + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="we-member-actions">' + actions + '</div>' +
+        '</div>';
+      }).join('');
+      container.innerHTML =
+        '<div style="background:rgba(216,151,231,0.08);border:1px solid rgba(216,151,231,0.2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#cdd2db;">' +
+          'Asignar a un workspace agrega al usuario como miembro de esa empresa. El rol global del usuario no cambia.' +
+        '</div>' +
+        '<div id="members-list">' + rows + '</div>' +
+        '<p style="font-size:11px;color:#4a5060;margin-top:10px;">' + list.length + ' usuario(s)</p>' +
+        pagerHtml(list.length, page, GU_PAGE, '_goGuPage');
+    }
+
+    window.assignUserToWorkspace = async function(userId, email) {
+      var wsId = (document.getElementById('ws-for-' + userId) || {}).value || '';
+      var role = (document.getElementById('role-for-' + userId) || {}).value || '';
+      var toast = function(msg, type) { window.LyfterUtils.toast(msg, type); };
+
+      if (!role) { toast('Seleccioná un rol', 'error'); return; }
+
+      // god_admin — otorgar rol global vía endpoint dedicado
+      if (role === 'god_admin') {
+        if (!confirm('¿Otorgar God Admin a ' + email + '? Tendrá acceso total a la plataforma.')) return;
+        try {
+          var res = await fetch(window.LyfterAPI.base + '/workspaces/grant-god-admin', {
+            method: 'POST',
+            headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
+            body: JSON.stringify({ email: email })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error');
+          toast(email + ' ahora es God Admin', 'success');
+          setTimeout(function() { loadPlatformUsers(); }, 800);
+        } catch(e) { toast(e.message, 'error'); }
+        return;
+      }
+
+      // participant no necesita workspace — solo actualiza rol global
+      if (role === 'participant') {
+        if (!confirm('¿Cambiar a ' + email + ' a participante? Perderá acceso al panel de administración.')) return;
+        try {
+          var res = await fetch(window.LyfterAPI.base + '/workspaces/set-participant', {
+            method: 'POST',
+            headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
+            body: JSON.stringify({ email: email })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error');
+          toast(email + ' ahora es participante', 'success');
+          setTimeout(function() { loadPlatformUsers(); }, 800);
+        } catch(e) { toast(e.message, 'error'); }
+        return;
+      }
+
+      if (!wsId) { toast('Seleccioná un workspace', 'error'); return; }
+
+      try {
+        var res = await fetch(window.LyfterAPI.base + '/workspaces/' + wsId + '/invite', {
+          method: 'POST',
+          headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
+          body: JSON.stringify({ email: email, role: role, method: 'direct' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        toast(email + ' asignado como ' + role + ' correctamente.', 'success');
+        setTimeout(function() { loadPlatformUsers(); }, 800);
+      } catch(e) { toast(e.message || 'Error al asignar', 'error'); }
+    };
+
+    window.openRoleModal = function(userId, userName, email) {
+      var old = document.getElementById('role-modal-overlay');
+      if (old) old.remove();
+      var emailJs = String(email).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var wsOptions = _allWsCache.map(function(w) {
+        return '<option value="' + w.id + '">' + U.esc(w.name) + '</option>';
+      }).join('');
+      var overlay = document.createElement('div');
+      overlay.id = 'role-modal-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+      overlay.innerHTML =
+        '<div style="background:#1c1f27;border:1px solid #353a46;border-radius:20px;padding:28px 30px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.5);">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px;">' +
+            '<div>' +
+              '<div style="font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#d897e7;">' + U.esc(userName) + '</div>' +
+              '<div style="font-size:12px;color:#8b93a3;margin-top:3px;">' + U.esc(email) + '</div>' +
+            '</div>' +
+            '<button onclick="closeRoleModal()" style="background:none;border:none;color:#6f7686;font-size:22px;cursor:pointer;line-height:1;padding:0 4px;">×</button>' +
+          '</div>' +
+          '<div style="background:rgba(216,151,231,0.08);border:1px solid rgba(216,151,231,0.2);border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:#cdd2db;">Asignar a un workspace agrega al usuario como miembro de esa empresa. El rol global del usuario no cambia.</div>' +
+          '<div style="margin-bottom:16px;">' +
+            '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:8px;letter-spacing:.06em;text-transform:uppercase;">Workspace</div>' +
+            '<select id="ws-for-' + userId + '" style="width:100%;height:44px;border-radius:10px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:14px;padding:0 12px;outline:none;box-sizing:border-box;">' +
+              '<option value="">Workspace…</option>' + wsOptions +
+            '</select>' +
+          '</div>' +
+          '<div style="margin-bottom:22px;">' +
+            '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:8px;letter-spacing:.06em;text-transform:uppercase;">Rol</div>' +
+            '<select id="role-for-' + userId + '" style="width:100%;height:44px;border-radius:10px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:14px;padding:0 12px;outline:none;box-sizing:border-box;">' +
+              '<option value="participant">Participante</option>' +
+              '<option value="admin">Admin</option>' +
+              '<option value="superadmin">Super Admin</option>' +
+              (user.role === 'god_admin' ? '<option value="god_admin">God Admin</option>' : '') +
+            '</select>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;">' +
+            '<button onclick="closeRoleModal()" style="flex:1;height:44px;border-radius:10px;border:1px solid #353a46;background:transparent;color:#aab1bf;font-family:Poppins,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Cancelar</button>' +
+            '<button onclick="handleRoleAssign(\'' + userId + '\',\'' + emailJs + '\')" style="flex:2;height:44px;border-radius:10px;border:none;background:linear-gradient(180deg,#ec9799,#e68a8d);color:#3a1f20;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Asignar</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeRoleModal(); });
+    };
+
+    window.handleRoleAssign = async function(userId, email) {
+      var wsId = (document.getElementById('ws-for-' + userId) || {}).value || '';
+      var role = (document.getElementById('role-for-' + userId) || {}).value || '';
+      var toast = function(msg, type) { window.LyfterUtils.toast(msg, type); };
+
+      if (!role) { toast('Seleccioná un rol', 'error'); return; }
+
+      try {
+        if (role === 'participant') {
+          var res = await fetch(window.LyfterAPI.base + '/workspaces/set-participant', {
+            method: 'POST',
+            headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
+            body: JSON.stringify({ email: email })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error');
+          toast(email + ' ahora es participante', 'success');
+        } else if (role === 'god_admin') {
+          var res = await fetch(window.LyfterAPI.base + '/workspaces/grant-god-admin', {
+            method: 'POST',
+            headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
+            body: JSON.stringify({ email: email })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error');
+          toast(email + ' ahora es God Admin', 'success');
+        } else {
+          if (!wsId) { toast('Seleccioná un workspace', 'error'); return; }
+          var res = await fetch(window.LyfterAPI.base + '/workspaces/' + wsId + '/invite', {
+            method: 'POST',
+            headers: Object.assign({}, window.LyfterAPI.authHeaders(), {'Content-Type': 'application/json'}),
+            body: JSON.stringify({ email: email, role: role, method: 'direct' })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error');
+          toast(email + ' asignado como ' + role, 'success');
+        }
+        closeRoleModal();
+        setTimeout(function() { loadPlatformUsers(); }, 600);
+      } catch(e) {
+        toast(e.message || 'Error al asignar', 'error');
+      }
+    };
+
+    window.closeRoleModal = function() {
+      var el = document.getElementById('role-modal-overlay');
+      if (el) el.remove();
+    };
+
+    var _banModalTarget = null;
+
+    window.openBanModal = function(userId, userName) {
+      _banModalTarget = userId;
+      var old = document.getElementById('ban-modal-overlay');
+      if (old) old.remove();
+      var DURATIONS = [
+        {label:'1 hora',val:'1'},{label:'6 horas',val:'6'},{label:'24 horas',val:'24',checked:true},
+        {label:'7 días',val:'168'},{label:'30 días',val:'720'},{label:'Permanente',val:'perm'},
+      ];
+      var overlay = document.createElement('div');
+      overlay.id = 'ban-modal-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+      overlay.innerHTML =
+        '<div style="background:#1c1f27;border:1px solid #353a46;border-radius:20px;padding:28px 30px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.5);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">' +
+            '<div style="font-family:Poppins,sans-serif;font-size:17px;font-weight:700;color:#ffc850;">Banear a ' + U.esc(userName) + '</div>' +
+            '<button onclick="closeBanModal()" style="background:none;border:none;color:#6f7686;font-size:22px;cursor:pointer;line-height:1;padding:0 4px;">×</button>' +
+          '</div>' +
+          '<div style="margin-bottom:18px;">' +
+            '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase;">Duración</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">' +
+              DURATIONS.map(function(d) {
+                return '<label style="display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:10px;border:1px solid #353a46;cursor:pointer;font-size:13px;color:#cdd2db;">' +
+                  '<input type="radio" name="ban-dur" value="' + d.val + '"' + (d.checked ? ' checked' : '') + ' style="accent-color:#ffc850;flex-shrink:0;" /> ' + d.label + '</label>';
+              }).join('') +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-bottom:18px;">' +
+            '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase;">Alcance</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;">' +
+              '<label style="display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-radius:10px;border:1px solid #353a46;cursor:pointer;font-size:13px;color:#cdd2db;">' +
+                '<input type="radio" name="ban-scope" value="account" checked style="accent-color:#ffc850;flex-shrink:0;margin-top:2px;" /> ' +
+                '<div><div style="font-weight:600;">Solo la cuenta</div><div style="font-size:11px;color:#8b93a3;margin-top:2px;">El usuario no puede iniciar sesión con esta cuenta.</div></div>' +
+              '</label>' +
+              '<label style="display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-radius:10px;border:1px solid #353a46;cursor:pointer;font-size:13px;color:#cdd2db;">' +
+                '<input type="radio" name="ban-scope" value="account_ip" style="accent-color:#ffc850;flex-shrink:0;margin-top:2px;" /> ' +
+                '<div><div style="font-weight:600;">Cuenta + IP</div><div style="font-size:11px;color:#8b93a3;margin-top:2px;">Bloquea también la IP de su último login.</div></div>' +
+              '</label>' +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-bottom:22px;">' +
+            '<div style="font-size:11px;font-weight:700;color:#8b93a3;margin-bottom:8px;letter-spacing:.06em;text-transform:uppercase;">Razón (opcional)</div>' +
+            '<input id="ban-reason-input" type="text" placeholder="Ej: spam, comportamiento inapropiado..." style="width:100%;height:44px;border-radius:10px;border:1px solid #353a46;background:#2e323d;color:#f4f6f9;font-family:Manrope,sans-serif;font-size:14px;padding:0 14px;outline:none;box-sizing:border-box;" />' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;">' +
+            '<button onclick="closeBanModal()" style="flex:1;height:44px;border-radius:10px;border:1px solid #353a46;background:transparent;color:#aab1bf;font-family:Poppins,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Cancelar</button>' +
+            '<button id="confirm-ban-btn" onclick="confirmBanUser()" style="flex:2;height:44px;border-radius:10px;border:1px solid rgba(255,200,80,0.4);background:rgba(255,200,80,0.15);color:#ffc850;font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Confirmar ban</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeBanModal(); });
+    };
+
+    window.closeBanModal = function() {
+      var el = document.getElementById('ban-modal-overlay');
+      if (el) el.remove();
+      _banModalTarget = null;
+    };
+
+    window.confirmBanUser = async function() {
+      if (!_banModalTarget) return;
+      var durEl   = document.querySelector('input[name="ban-dur"]:checked');
+      var scopeEl = document.querySelector('input[name="ban-scope"]:checked');
+      var reason  = (document.getElementById('ban-reason-input').value || '').trim();
+      var dur     = durEl ? durEl.value : '24';
+      var scope   = scopeEl ? scopeEl.value : 'account';
+      var duration_hours = dur === 'perm' ? null : parseInt(dur, 10);
+      var btn = document.getElementById('confirm-ban-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
+      try {
+        var res = await fetch(API.base + '/workspaces/platform/users/' + _banModalTarget + '/ban', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ duration_hours: duration_hours, ban_scope: scope, reason: reason }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        closeBanModal();
+        toast('Usuario baneado', 'success');
+        if (data.warning) toast(data.warning, 'warning');
+        loadPlatformUsers();
+      } catch(e) {
+        toast(e.message, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Confirmar ban'; }
+      }
+    };
+
+    window.unbanPlatformUser = async function(userId) {
+      if (!confirm('¿Desbanear a este usuario?')) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/platform/users/' + userId + '/unban', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        toast('Usuario desbaneado', 'success');
+        loadPlatformUsers();
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    window.deletePlatformUser = async function(userId, userName) {
+      if (!confirm('¿Eliminar la cuenta de ' + userName + '?\n\nEsta acción es PERMANENTE.')) return;
+      if (!confirm('CONFIRMACIÓN FINAL\n¿Eliminar definitivamente a ' + userName + '?')) return;
+      try {
+        var res = await fetch(API.base + '/workspaces/platform/users/' + userId, {
+          method: 'DELETE',
+          headers: API.authHeaders(),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        toast('Cuenta eliminada', 'success');
+        loadPlatformUsers();
+      } catch(e) { toast(e.message, 'error'); }
+    };
+
+    // ── Selección múltiple ────────────────────────────────────
+
+    window.toggleSelectMode = function() {
+      _selectMode = !_selectMode;
+      _selectedUsers.clear();
+      var btn = document.getElementById('toggle-select-mode');
+      var checkboxCols = document.querySelectorAll('.user-select-col');
+      var checkboxes   = document.querySelectorAll('.user-checkbox');
+      if (_selectMode) {
+        if (btn) { btn.style.background = 'rgba(216,151,231,0.15)'; btn.style.borderColor = '#d897e7'; btn.style.color = '#d897e7'; btn.textContent = '✕ Cancelar selección'; }
+        checkboxCols.forEach(function(el) { el.style.display = 'flex'; });
+      } else {
+        if (btn) { btn.style.background = 'transparent'; btn.style.borderColor = '#353a46'; btn.style.color = '#aab1bf'; btn.textContent = '☑ Seleccionar'; }
+        checkboxCols.forEach(function(el) { el.style.display = 'none'; });
+        checkboxes.forEach(function(cb) { cb.checked = false; });
+      }
+      updateBulkBar();
+    };
+
+    window.onUserCheckboxChange = function(checkbox) {
+      var uid = checkbox.dataset.uid;
+      if (checkbox.checked) {
+        if (_selectedUsers.size >= MAX_SELECTION) {
+          checkbox.checked = false;
+          toast('Máximo ' + MAX_SELECTION + ' usuarios por acción', 'warning');
+          return;
+        }
+        _selectedUsers.add(uid);
+      } else {
+        _selectedUsers.delete(uid);
+      }
+      updateBulkBar();
+    };
+
+    function updateBulkBar() {
+      var bar = document.getElementById('bulk-action-bar');
+      if (!bar) return;
+      var count = _selectedUsers.size;
+      if (_selectMode && count > 0) {
+        bar.style.transform = 'translateY(0)';
+        bar.style.opacity = '1';
+        bar.style.pointerEvents = 'auto';
+        var counter = document.getElementById('bulk-counter');
+        if (counter) counter.textContent = count + ' / ' + MAX_SELECTION + ' seleccionados';
+      } else {
+        bar.style.transform = 'translateY(100%)';
+        bar.style.opacity = '0';
+        bar.style.pointerEvents = 'none';
+      }
+    }
+
+    window.bulkDeselect = function() {
+      _selectedUsers.clear();
+      document.querySelectorAll('.user-checkbox').forEach(function(cb) { cb.checked = false; });
+      updateBulkBar();
+    };
+
+    window.bulkBan = async function() {
+      if (_selectedUsers.size === 0) return;
+      var uids = Array.from(_selectedUsers);
+      if (!confirm('¿Banear ' + uids.length + ' cuenta(s) seleccionadas por 24 horas?')) return;
+      var errors = 0;
+      for (var uid of uids) {
+        try {
+          var res = await fetch(API.base + '/workspaces/platform/users/' + uid + '/ban', {
+            method: 'POST',
+            headers: Object.assign({}, API.authHeaders(), {'Content-Type': 'application/json'}),
+            body: JSON.stringify({ duration_hours: 24, ban_scope: 'account', reason: 'Baneo en lote' })
+          });
+          if (!res.ok) errors++;
+        } catch(e) { errors++; }
+      }
+      var ok = uids.length - errors;
+      toast(ok + ' cuenta(s) baneadas' + (errors > 0 ? ' · ' + errors + ' errores' : ''), errors > 0 ? 'warning' : 'success');
+      toggleSelectMode();
+      loadPlatformUsers();
+    };
+
+    window.bulkDelete = async function() {
+      if (_selectedUsers.size === 0) return;
+      var uids = Array.from(_selectedUsers);
+      if (!confirm('¿Eliminar ' + uids.length + ' cuenta(s) de forma permanente? Esta acción no se puede deshacer.')) return;
+      var errors = 0;
+      for (var uid of uids) {
+        try {
+          var res = await fetch(API.base + '/workspaces/platform/users/' + uid, {
+            method: 'DELETE',
+            headers: API.authHeaders()
+          });
+          if (!res.ok) errors++;
+        } catch(e) { errors++; }
+      }
+      var ok = uids.length - errors;
+      toast(ok + ' cuenta(s) eliminadas' + (errors > 0 ? ' · ' + errors + ' errores' : ''), errors > 0 ? 'warning' : 'success');
+      toggleSelectMode();
+      loadPlatformUsers();
+    };
+
+    // ── IPs Baneadas ──────────────────────────────────────────
+
+    window.loadIpBans = async function() {
+      var container = document.getElementById('ip-bans-list');
+      if (!container) return;
+      container.innerHTML = '<p style="color:#8b93a3;font-size:13px;text-align:center;padding:20px;">Cargando...</p>';
+      try {
+        var res = await fetch(API.base + '/admin/ip-bans', { headers: API.authHeaders() });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        if (!data.length) {
+          container.innerHTML = '<p style="color:#8b93a3;font-size:13px;text-align:center;padding:24px;">No hay IPs baneadas actualmente.</p>';
+          return;
+        }
+        container.innerHTML =
+          '<div style="overflow-x:auto;">' +
+            '<div style="min-width:480px;">' +
+              '<div style="display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid #262a33;">' +
+                '<span style="font-size:11px;font-weight:700;color:#6f7686;text-transform:uppercase;letter-spacing:.08em;flex:0 0 140px;">IP</span>' +
+                '<span style="font-size:11px;font-weight:700;color:#6f7686;text-transform:uppercase;letter-spacing:.08em;flex:1;">Razón</span>' +
+                '<span style="font-size:11px;font-weight:700;color:#6f7686;text-transform:uppercase;letter-spacing:.08em;flex:0 0 100px;">Expira</span>' +
+                '<span style="font-size:11px;font-weight:700;color:#6f7686;text-transform:uppercase;letter-spacing:.08em;flex:0 0 90px;">Fecha</span>' +
+                '<span style="font-size:11px;font-weight:700;color:#6f7686;text-transform:uppercase;letter-spacing:.08em;flex:0 0 110px;">Acción</span>' +
+              '</div>' +
+              data.map(function(b) {
+                var isPerm = b.permanent;
+                var expStr = isPerm ? 'Permanente' : (b.expires_at ? new Date(b.expires_at).toLocaleDateString('es-AR') : '—');
+                var createdStr = b.created_at ? new Date(b.created_at).toLocaleDateString('es-AR') : '—';
+                var safeIp = b.ip.replace(/'/g, "\\'");
+                return '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #20242d;flex-wrap:wrap;">' +
+                  '<code style="font-family:JetBrains Mono,monospace;font-size:13px;color:#70cfff;background:#20242d;padding:3px 10px;border-radius:6px;flex:0 0 140px;word-break:break-all;">' + U.esc(b.ip) + '</code>' +
+                  '<span style="flex:1;font-size:13px;color:#cdd2db;min-width:100px;word-break:break-word;">' + U.esc(b.reason || '—') + '</span>' +
+                  '<span style="font-size:12px;padding:3px 10px;border-radius:999px;background:' + (isPerm ? 'rgba(230,138,141,0.15)' : 'rgba(255,203,138,0.12)') + ';color:' + (isPerm ? '#e68a8d' : '#ffcb8a') + ';flex:0 0 100px;text-align:center;">' + expStr + '</span>' +
+                  '<span style="font-size:12px;color:#6f7686;flex:0 0 90px;">' + createdStr + '</span>' +
+                  '<button onclick="unbanIp(\'' + safeIp + '\')" style="height:34px;padding:0 14px;border-radius:8px;border:1px solid rgba(230,138,141,0.35);background:rgba(230,138,141,0.08);color:#e68a8d;font-family:Poppins,sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;flex:0 0 110px;justify-content:center;">' +
+                    '<img src="assets/icons/ui/icono-basura-blanco.png" style="width:14px;height:14px;object-fit:contain;opacity:.85;" /> Desbanear' +
+                  '</button>' +
+                '</div>';
+              }).join('') +
+            '</div>' +
+          '</div>';
+      } catch(e) {
+        container.innerHTML = '<p style="color:#e68a8d;font-size:13px;padding:16px;">Error: ' + U.esc(e.message) + '</p>';
+      }
+    };
+
+    window.unbanIp = async function(ip) {
+      if (!confirm('¿Desbanear la IP ' + ip + '?')) return;
+      try {
+        var res = await fetch(API.base + '/admin/ip-ban/' + encodeURIComponent(ip), {
+          method: 'DELETE',
+          headers: API.authHeaders()
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        toast('IP ' + ip + ' desbaneada', 'success');
+        loadIpBans();
+      } catch(e) {
+        toast(e.message, 'error');
+      }
+    };
+
+    window.banIpManual = async function() {
+      var ip     = ((document.getElementById('manual-ban-ip')     || {}).value || '').trim();
+      var reason = ((document.getElementById('manual-ban-reason') || {}).value || '').trim();
+      var days   = (document.getElementById('manual-ban-days')    || {}).value || '1';
+      if (!ip) { toast('Ingresá una IP válida', 'error'); return; }
+      var body = { ip: ip, reason: reason || 'Baneo manual', permanent: days === 'perm' };
+      if (days !== 'perm') body.days = parseInt(days, 10);
+      try {
+        var res = await fetch(API.base + '/admin/ip-ban', {
+          method: 'POST',
+          headers: Object.assign({}, API.authHeaders(), { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body)
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        toast('IP ' + ip + ' baneada correctamente', 'success');
+        document.getElementById('manual-ban-ip').value = '';
+        document.getElementById('manual-ban-reason').value = '';
+        loadIpBans();
+      } catch(e) {
+        toast(e.message, 'error');
+      }
+    };
+
+    loadIpBans();
+
+    // ── Barra flotante de acciones en lote ───────────────────
+    if (!document.getElementById('bulk-action-bar')) {
+      var bar = document.createElement('div');
+      bar.id = 'bulk-action-bar';
+      bar.style.cssText =
+        'position:fixed;bottom:0;left:0;right:0;z-index:300;' +
+        'background:rgba(26,29,36,0.97);' +
+        'backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);' +
+        'border-top:1px solid rgba(216,151,231,0.25);' +
+        'padding:14px 24px;' +
+        'display:flex;align-items:center;gap:12px;flex-wrap:wrap;' +
+        'transform:translateY(100%);opacity:0;pointer-events:none;' +
+        'transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1),opacity 0.2s ease;';
+      bar.innerHTML =
+        '<span id="bulk-counter" style="font-family:Poppins,sans-serif;font-size:14px;font-weight:700;color:#d897e7;flex:1;">0 / 25 seleccionados</span>' +
+        '<button onclick="bulkDeselect()" style="height:40px;padding:0 16px;border-radius:10px;border:1px solid #353a46;background:transparent;color:#aab1bf;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Deseleccionar todo</button>' +
+        '<button onclick="bulkBan()" style="height:40px;padding:0 18px;border-radius:10px;border:1px solid rgba(255,203,138,0.35);background:rgba(255,203,138,0.10);color:#ffcb8a;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;">⏸ Banear seleccionados (24h)</button>' +
+        '<button onclick="bulkDelete()" style="height:40px;padding:0 18px;border-radius:10px;border:1px solid rgba(230,138,141,0.35);background:rgba(230,138,141,0.10);color:#e68a8d;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;">🗑 Eliminar seleccionados</button>';
+      document.body.appendChild(bar);
+    }
+
+  })();
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

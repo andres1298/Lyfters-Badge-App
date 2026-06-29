@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaderboard — Lyfter Badge App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="loading-screen">
+    <img src="assets/icons/ui/logo-lyfter.jpeg" alt="Lyfter" />
+    <div class="loader"></div>
+    <span>Cargando...</span>
+  <div id="server-wakeup-notice" style="display:none;margin-top:16px;font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;text-align:center;max-width:240px;">
+    <img src="assets/icons/ui/reloj-de-arena.png" style="width:32px;height:32px;object-fit:contain;display:block;margin:0 auto 6px;opacity:0.7;" />
+    El servidor está despertando...<br>Esto puede tardar hasta 1 minuto.
+  </div>
+  </div>
+  <main id="app"></main>
+  <div id="modal-root"></div>
+  <div id="toast-root" style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;"></div>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    (function() {
+      'use strict';
+      var API = window.LyfterAPI;
+      var U = window.LyfterUtils;
+
+      var user = API.currentUser();
+      if (!user) { window.location.replace('login.html'); return; }
+      var ADMIN_ROLES = ['admin','superadmin','god_admin'];
+      if (ADMIN_ROLES.indexOf(user.role) === -1) { window.location.replace('profile.html'); return; }
+      try { if (!sessionStorage.getItem('lyfter_ws_entered')) { window.location.replace('workspace-select.html'); return; } } catch(e) {}
+
+      var app = document.getElementById('app');
+      var _xlPage = 0, XL_PAGE = 10;
+
+      function pagerHtml(total, page, size, gotoFn) {
+        if (total <= size) return '';
+        var totalPages = Math.ceil(total / size);
+        var from = page * size + 1;
+        var to = Math.min((page + 1) * size, total);
+        var btns = '';
+        for (var p = 0; p < totalPages; p++) {
+          if (totalPages > 7 && p !== 0 && p !== totalPages - 1 && Math.abs(p - page) > 1) {
+            if (p === page - 2 || p === page + 2) btns += '<span style="color:#4a5060;align-self:center;padding:0 2px;">…</span>';
+            continue;
+          }
+          var active = p === page;
+          btns += '<button onclick="' + gotoFn + '(' + p + ')" style="min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid ' + (active ? '#d897e7' : '#2f343f') + ';background:' + (active ? 'rgba(216,151,231,0.15)' : 'transparent') + ';color:' + (active ? '#d897e7' : '#8b93a3') + ';font-family:Poppins,sans-serif;font-size:13px;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;">' + (p + 1) + '</button>';
+        }
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px;border-top:1px solid #2f343f;margin-top:8px;flex-wrap:wrap;gap:8px;">' +
+          '<span style="font-size:12px;color:#8b93a3;font-family:Manrope,sans-serif;">' + from + '–' + to + ' de ' + total + '</span>' +
+          '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+            (page > 0 ? '<button onclick="' + gotoFn + '(' + (page-1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">←</button>' : '') +
+            btns +
+            (page < totalPages - 1 ? '<button onclick="' + gotoFn + '(' + (page+1) + ')" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #2f343f;background:transparent;color:#8b93a3;font-size:13px;cursor:pointer;">→</button>' : '') +
+          '</div>' +
+        '</div>';
+      }
+
+      async function init() {
+        try {
+          var [events, leaderboard, xpLeaderboard] = await Promise.all([
+            API.listAdminEvents(),
+            API.getLeaderboard(),
+            API.getXpLeaderboard()
+          ]);
+          var activeId = U.ensureActive(events);
+          var top8 = leaderboard.slice(0, 8);
+
+          function buildTable(data) {
+            if (!data.length) return '<p style="color:#8b93a3;text-align:center;padding:32px;font-family:Manrope,sans-serif;">Sin datos todavía.</p>';
+            return '<table style="width:100%;border-collapse:collapse;">' +
+              '<thead>' +
+                '<tr style="border-bottom:1px solid #2f343f;">' +
+                  '<th style="padding:12px 8px;text-align:left;font-family:Manrope,sans-serif;font-size:11px;font-weight:700;color:#8b93a3;letter-spacing:.1em;">#</th>' +
+                  '<th style="padding:12px 8px;text-align:left;font-family:Manrope,sans-serif;font-size:11px;font-weight:700;color:#8b93a3;letter-spacing:.1em;">Usuario</th>' +
+                  '<th style="padding:12px 8px;text-align:right;font-family:Manrope,sans-serif;font-size:11px;font-weight:700;color:#8b93a3;letter-spacing:.1em;">Badges</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody>' +
+                data.map(function(entry, i) {
+                  var medals = ['<span style="font-size:18px;font-weight:900;color:#FFD700;">1°</span>','<span style="font-size:18px;font-weight:900;color:#C0C0C0;">2°</span>','<span style="font-size:18px;font-weight:900;color:#CD7F32;">3°</span>'];
+                  var rank = medals[i] || '<span style="color:#8b93a3;font-weight:700;">' + (i+1) + '</span>';
+                  var avatarHtml = entry.avatar
+                    ? '<img src="' + entry.avatar + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid #2f343f;" />'
+                    : '<img src="assets/icons/ui/icono-perfil.png" style="width:36px;height:36px;border-radius:50%;object-fit:contain;background:#2e323d;padding:4px;" />';
+                  var isTop3 = i < 3;
+                  return '<tr style="border-bottom:1px solid #2f343f;' + (isTop3 ? 'background:rgba(216,151,231,0.04);' : '') + '">' +
+                    '<td style="padding:14px 8px;font-size:18px;text-align:left;">' + rank + '</td>' +
+                    '<td style="padding:14px 8px;">' +
+                      '<div style="display:flex;align-items:center;gap:10px;">' +
+                        avatarHtml +
+                        '<div>' +
+                          '<p style="font-family:Poppins,sans-serif;font-size:14px;font-weight:600;color:#f4f6f9;margin:0;">' + U.esc(entry.nombre) + '</p>' +
+                          (entry.email ? '<p style="font-family:Manrope,sans-serif;font-size:11px;color:#8b93a3;margin:2px 0 0;">' + U.esc(entry.email) + '</p>' : '') +
+                        '</div>' +
+                      '</div>' +
+                    '</td>' +
+                    '<td style="padding:14px 8px;text-align:right;font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#d897e7;">' + entry.badges + '</td>' +
+                  '</tr>';
+                }).join('') +
+              '</tbody>' +
+            '</table>';
+          }
+
+          function buildXpTable(data, page) {
+            page = page || 0;
+            if (!data.length) return '<p style="color:#8b93a3;text-align:center;padding:32px;font-family:Manrope,sans-serif;">Sin datos todavía.</p>';
+            var slice = data.slice(page * XL_PAGE, (page + 1) * XL_PAGE);
+            return '<table style="width:100%;border-collapse:collapse;">' +
+              '<thead>' +
+                '<tr style="border-bottom:1px solid #2f343f;">' +
+                  '<th style="padding:12px 8px;text-align:left;font-family:Manrope,sans-serif;font-size:11px;font-weight:700;color:#8b93a3;letter-spacing:.1em;">#</th>' +
+                  '<th style="padding:12px 8px;text-align:left;font-family:Manrope,sans-serif;font-size:11px;font-weight:700;color:#8b93a3;letter-spacing:.1em;">Usuario</th>' +
+                  '<th style="padding:12px 8px;text-align:center;font-family:Manrope,sans-serif;font-size:11px;font-weight:700;color:#8b93a3;letter-spacing:.1em;">Nivel</th>' +
+                  '<th style="padding:12px 8px;text-align:right;font-family:Manrope,sans-serif;font-size:11px;font-weight:700;color:#8b93a3;letter-spacing:.1em;">XP Total</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody>' +
+                slice.map(function(entry, i) {
+                  var gi = page * XL_PAGE + i;
+                  var medals = ['<span style="font-size:18px;font-weight:900;color:#FFD700;">1°</span>','<span style="font-size:18px;font-weight:900;color:#C0C0C0;">2°</span>','<span style="font-size:18px;font-weight:900;color:#CD7F32;">3°</span>'];
+                  var rank = medals[gi] || '<span style="color:#8b93a3;font-weight:700;">' + (gi+1) + '</span>';
+                  var avatarHtml = entry.avatar
+                    ? '<img src="' + entry.avatar + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid #2f343f;">'
+                    : '<img src="assets/icons/ui/icono-perfil.png" style="width:36px;height:36px;border-radius:50%;object-fit:contain;background:#2e323d;padding:4px;">';
+                  var isTop3 = gi < 3;
+                  return '<tr style="border-bottom:1px solid #2f343f;' + (isTop3 ? 'background:rgba(216,151,231,0.04);' : '') + '">' +
+                    '<td style="padding:14px 8px;font-size:18px;text-align:left;">' + rank + '</td>' +
+                    '<td style="padding:14px 8px;">' +
+                      '<div style="display:flex;align-items:center;gap:10px;">' +
+                        avatarHtml +
+                        '<p style="font-family:Poppins,sans-serif;font-size:14px;font-weight:600;color:#f4f6f9;margin:0;">' + U.esc(entry.nombre) + '</p>' +
+                      '</div>' +
+                    '</td>' +
+                    '<td style="padding:14px 8px;text-align:center;">' +
+                      '<span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(216,151,231,0.15);color:#d897e7;">Lv. ' + (entry.level || 1) + '</span>' +
+                    '</td>' +
+                    '<td style="padding:14px 8px;text-align:right;font-family:Poppins,sans-serif;font-size:16px;font-weight:700;color:#d897e7;">' + (entry.xp || 0) + ' XP</td>' +
+                  '</tr>';
+                }).join('') +
+              '</tbody>' +
+            '</table>' + pagerHtml(data.length, page, XL_PAGE, '_goXlPage');
+          }
+          window._xlData = xpLeaderboard;
+          window._goXlPage = function(p) { _xlPage = p; var el = document.getElementById('panel-ranking'); if (el) el.innerHTML = buildXpTable(window._xlData, p); window.scrollTo(0, 0); };
+
+          var inner =
+            '<div class="anim-fade">' +
+              '<div style="background:#1c1f27;border:1px solid #2f343f;border-radius:18px;overflow:hidden;">' +
+                '<div style="display:flex;border-bottom:1px solid #2f343f;">' +
+                  '<button id="tab-leaderboard" style="flex:1;padding:18px;font-family:Poppins,sans-serif;font-size:15px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:linear-gradient(90deg,rgba(216,151,231,0.18),rgba(230,138,141,0.10));color:#f4f6f9;border-bottom:2px solid #d897e7;">Leaderboard</button>' +
+                  '<button id="tab-ranking" style="flex:1;padding:18px;font-family:Poppins,sans-serif;font-size:15px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#8b93a3;border-bottom:2px solid transparent;">Ranking Global</button>' +
+                '</div>' +
+                '<div style="padding:24px;overflow-x:auto;-webkit-overflow-scrolling:touch;">' +
+                  '<div id="panel-leaderboard">' + buildTable(top8) + '</div>' +
+                  '<div id="panel-ranking" style="display:none;">' + buildXpTable(xpLeaderboard, 0) + '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+
+          app.innerHTML = U.adminShell('leaderboard', inner, events, activeId);
+          U.mountAdminShell();
+          U.hideLoading();
+
+          document.getElementById('tab-leaderboard').addEventListener('click', function() {
+            document.getElementById('panel-leaderboard').style.display = '';
+            document.getElementById('panel-ranking').style.display = 'none';
+            this.style.background = 'linear-gradient(90deg,rgba(216,151,231,0.18),rgba(230,138,141,0.10))';
+            this.style.color = '#f4f6f9';
+            this.style.borderBottom = '2px solid #d897e7';
+            document.getElementById('tab-ranking').style.background = 'transparent';
+            document.getElementById('tab-ranking').style.color = '#8b93a3';
+            document.getElementById('tab-ranking').style.borderBottom = '2px solid transparent';
+          });
+
+          document.getElementById('tab-ranking').addEventListener('click', function() {
+            document.getElementById('panel-ranking').style.display = '';
+            document.getElementById('panel-leaderboard').style.display = 'none';
+            this.style.background = 'linear-gradient(90deg,rgba(216,151,231,0.18),rgba(230,138,141,0.10))';
+            this.style.color = '#f4f6f9';
+            this.style.borderBottom = '2px solid #d897e7';
+            document.getElementById('tab-leaderboard').style.background = 'transparent';
+            document.getElementById('tab-leaderboard').style.color = '#8b93a3';
+            document.getElementById('tab-leaderboard').style.borderBottom = '2px solid transparent';
+          });
+
+        } catch(err) {
+          app.innerHTML = U.errorHtml(err && err.message ? err.message : 'Error inesperado');
+          U.hideLoading();
+          var retry = document.getElementById('err-retry');
+          if (retry) retry.addEventListener('click', init);
+        }
+      }
+
+      setTimeout(U.hideLoading, 6000);
+      init();
+    })();
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

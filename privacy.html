@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Política de Privacidad — Lyfter Badge App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand: #d897e7; --brand-light: rgba(216,151,231,0.12); --brand-dark: #b563d4;
+      --ink: #f0eaf2; --ink-mid: rgba(240,234,242,0.70); --ink-soft: rgba(240,234,242,0.44);
+      --bg: #15171d; --surface: #1c1f27; --border: rgba(255,255,255,0.07);
+      --radius: 14px; --radius-sm: 8px;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Manrope', 'Poppins', system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.7; font-size: 15px; }
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(28,31,39,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; color: var(--ink); text-decoration: none; }
+    .nav-brand span { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: rgba(216,151,231,0.2); border-radius: 8px; font-size: 16px; }
+    .nav-back { font-size: 13px; color: var(--brand); text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 4px; transition: opacity .15s; }
+    .nav-back:hover { opacity: .7; }
+    .hero { background: linear-gradient(135deg, rgba(216,151,231,0.1) 0%, rgba(108,99,255,0.08) 100%); padding: 64px 24px 48px; text-align: center; border-bottom: 1px solid var(--border); }
+    .hero-icon { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(216,151,231,0.2); border-radius: 20px; font-size: 30px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(216,151,231,0.2); }
+    .hero h1 { font-size: clamp(24px, 5vw, 36px); font-weight: 700; color: var(--ink); margin-bottom: 12px; }
+    .hero p { color: var(--ink-mid); max-width: 500px; margin: 0 auto 20px; font-size: 15px; }
+    .hero-meta { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 16px; font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+    .hero-meta::before { content: ''; display: inline-block; width: 8px; height: 8px; background: #43D9AD; border-radius: 50%; }
+    .page { max-width: 1040px; margin: 0 auto; padding: 48px 24px; display: grid; grid-template-columns: 220px 1fr; gap: 48px; align-items: start; }
+    @media (max-width: 768px) { .page { grid-template-columns: 1fr; gap: 32px; } .sidebar { display: none; } }
+    .sidebar { position: sticky; top: 72px; }
+    .sidebar-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); margin-bottom: 12px; }
+    .sidebar nav { position: static; background: none; backdrop-filter: none; border: none; padding: 0; height: auto; display: flex; flex-direction: column; gap: 2px; }
+    .sidebar-link { display: block; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; color: var(--ink-mid); text-decoration: none; font-weight: 500; transition: all .15s; border-left: 2px solid transparent; }
+    .sidebar-link:hover, .sidebar-link.active { background: var(--brand-light); color: var(--brand); border-left-color: var(--brand); }
+    .content { min-width: 0; }
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; margin-bottom: 20px; scroll-margin-top: 72px; }
+    .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .section-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: var(--brand-light); border-radius: 10px; font-size: 20px; flex-shrink: 0; }
+    .section-title { font-size: 18px; font-weight: 600; color: var(--ink); }
+    .section p { color: var(--ink-mid); margin-bottom: 14px; }
+    .section p:last-child { margin-bottom: 0; }
+    .section ul { list-style: none; margin: 14px 0; display: flex; flex-direction: column; gap: 8px; }
+    .section ul li { display: flex; align-items: baseline; gap: 10px; color: var(--ink-mid); font-size: 14px; }
+    .section ul li::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--brand); border-radius: 50%; flex-shrink: 0; margin-top: 7px; }
+    .highlight-box { background: var(--brand-light); border: 1px solid rgba(216,151,231,0.25); border-radius: var(--radius-sm); padding: 16px 20px; margin: 16px 0; }
+    .highlight-box p { color: var(--brand); font-size: 14px; font-weight: 500; margin: 0; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+    .info-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+    .info-card-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin-bottom: 6px; }
+    .info-card-value { font-size: 14px; font-weight: 500; color: var(--ink); }
+    .contact-card { background: linear-gradient(135deg, rgba(108,99,255,0.6) 0%, rgba(181,99,212,0.6) 100%); border: 1px solid rgba(216,151,231,0.25); border-radius: var(--radius); padding: 32px; text-align: center; color: white; margin-bottom: 20px; }
+    .contact-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .contact-card p { opacity: .85; margin-bottom: 20px; font-size: 14px; }
+    .contact-email { display: inline-block; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 10px 20px; color: white; font-weight: 600; text-decoration: none; font-size: 14px; transition: background .15s; }
+    .contact-email:hover { background: rgba(255,255,255,0.25); }
+    footer { text-align: center; padding: 32px 24px; border-top: 1px solid var(--border); color: var(--ink-soft); font-size: 13px; }
+    footer a { color: var(--brand); text-decoration: none; }
+  </style>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="nav-brand"><span>🏆</span> Lyfter Badge App</a>
+    <a href="index.html" class="nav-back" data-pk="back">← Volver</a>
+    <select id="lang-selector" style="font-size:13px; padding:4px 8px; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:rgba(240,234,242,0.7); outline:none; cursor:pointer; background:#1c1f27;">
+      <option value="es">🇪🇸 ES</option>
+      <option value="en">🇬🇧 EN</option>
+    </select>
+  </nav>
+  <div class="hero">
+    <div class="hero-icon"><img src="assets/icons/ui/icono-candado.png" style="width:18px;height:18px;object-fit:contain;"></div>
+    <h1 data-pk="title">Política de Privacidad</h1>
+    <p data-pk="subtitle">Cómo recopilamos, usamos y protegemos tu información cuando usás Lyfter Badge App.</p>
+    <div class="hero-meta" data-pk="updated">Última actualización: junio 2026</div>
+  </div>
+  <div class="page">
+    <aside class="sidebar">
+      <div class="sidebar-label">Contenido</div>
+      <nav>
+        <a href="#que-recopilamos" class="sidebar-link">Qué recopilamos</a>
+        <a href="#como-usamos" class="sidebar-link">Cómo lo usamos</a>
+        <a href="#compartir" class="sidebar-link">Con quién compartimos</a>
+        <a href="#retencion" class="sidebar-link">Cuánto tiempo guardamos</a>
+        <a href="#seguridad" class="sidebar-link">Seguridad</a>
+        <a href="#tus-derechos" class="sidebar-link">Tus derechos</a>
+        <a href="#cookies" class="sidebar-link">Cookies y almacenamiento</a>
+        <a href="#menores" class="sidebar-link">Menores de edad</a>
+        <a href="#cambios" class="sidebar-link">Cambios a esta política</a>
+        <a href="#contacto" class="sidebar-link">Contacto</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="section" id="que-recopilamos">
+        <div class="section-header"><div class="section-icon">📋</div><h2 class="section-title" data-pk="s1_title">Qué información recopilamos</h2></div>
+        <p>Recopilamos únicamente la información necesaria para que la app funcione.</p>
+        <ul>
+          <li>Nombre completo y dirección de correo electrónico</li>
+          <li>Contraseña (guardada como hash cifrado, nunca en texto plano)</li>
+          <li>Rol dentro de la plataforma: participante o administrador</li>
+          <li>Registro de badges canjeados y eventos en los que participaste</li>
+          <li>Fecha y hora de cada escaneo de código QR</li>
+        </ul>
+        <div class="highlight-box"><p>No recopilamos datos de ubicación, información financiera ni datos sensibles de ningún tipo.</p></div>
+      </section>
+      <section class="section" id="como-usamos">
+        <div class="section-header"><div class="section-icon">⚙️</div><h2 class="section-title" data-pk="s2_title">Cómo usamos tu información</h2></div>
+        <p>Usamos tu información exclusivamente para que la experiencia de la app funcione:</p>
+        <ul>
+          <li>Autenticarte y mantener tu sesión activa de forma segura</li>
+          <li>Registrar los badges que canjeás al escanear códigos QR</li>
+          <li>Mostrarte tu progreso y los eventos disponibles</li>
+          <li>Permitir a los administradores gestionar eventos, badges y participantes</li>
+        </ul>
+        <p>No usamos tu información para publicidad ni la vendemos a terceros.</p>
+      </section>
+      <section class="section" id="compartir">
+        <div class="section-header"><div class="section-icon">🤝</div><h2 class="section-title" data-pk="s3_title">Con quién compartimos tu información</h2></div>
+        <p>Tu información puede ser procesada por estos proveedores de infraestructura:</p>
+        <div class="info-grid">
+          <div class="info-card"><div class="info-card-label">Base de datos</div><div class="info-card-value">MongoDB Atlas</div></div>
+          <div class="info-card"><div class="info-card-label">Servidor backend</div><div class="info-card-value">Render</div></div>
+          <div class="info-card"><div class="info-card-label">Hosting frontend</div><div class="info-card-value">Vercel / GitHub Pages</div></div>
+        </div>
+        <p>No comparten tu información con terceros para sus propios fines.</p>
+      </section>
+      <section class="section" id="retencion">
+        <div class="section-header"><div class="section-icon">🗓️</div><h2 class="section-title" data-pk="s4_title">Cuánto tiempo guardamos tu información</h2></div>
+        <p>Conservamos tu información mientras tu cuenta esté activa. Si solicitás la eliminación de tu cuenta, borraremos tus datos personales dentro de un plazo razonable.</p>
+        <div class="highlight-box"><p>Los registros de badges pueden conservarse de forma anonimizada con fines estadísticos.</p></div>
+      </section>
+      <section class="section" id="seguridad">
+        <div class="section-header"><div class="section-icon">🛡️</div><h2 class="section-title" data-pk="s5_title">Cómo protegemos tu información</h2></div>
+        <ul>
+          <li>Las contraseñas se almacenan como hashes bcrypt — nunca en texto plano</li>
+          <li>Toda la comunicación usa HTTPS con cifrado TLS</li>
+          <li>La autenticación usa tokens JWT con tiempo de expiración</li>
+          <li>El acceso administrativo requiere credenciales con rol verificado</li>
+        </ul>
+      </section>
+      <section class="section" id="tus-derechos">
+        <div class="section-header"><div class="section-icon">⚖️</div><h2 class="section-title" data-pk="s6_title">Tus derechos</h2></div>
+        <ul>
+          <li><strong>Acceso:</strong> saber qué datos tenemos sobre vos</li>
+          <li><strong>Rectificación:</strong> corregir información incorrecta</li>
+          <li><strong>Eliminación:</strong> solicitar que borremos tu cuenta y datos</li>
+          <li><strong>Portabilidad:</strong> recibir una copia de tus datos</li>
+        </ul>
+        <p>Para ejercer estos derechos, contactanos usando la dirección al final de esta página.</p>
+      </section>
+      <section class="section" id="cookies">
+        <div class="section-header"><div class="section-icon">🍪</div><h2 class="section-title" data-pk="s7_title">Cookies y almacenamiento local</h2></div>
+        <p>Lyfter Badge App usa <strong>localStorage</strong> del navegador para guardar tu sesión activa. No usamos cookies de rastreo ni herramientas de analytics de terceros.</p>
+        <div class="highlight-box"><p>Podés cerrar sesión en cualquier momento y la información de sesión se elimina automáticamente.</p></div>
+      </section>
+      <section class="section" id="menores">
+        <div class="section-header"><div class="section-icon">👶</div><h2 class="section-title" data-pk="s8_title">Menores de edad</h2></div>
+        <p>Lyfter Badge App no está dirigida a personas menores de 13 años. Si creés que un menor nos proporcionó información, contactanos para eliminarla de inmediato.</p>
+      </section>
+      <section class="section" id="cambios">
+        <div class="section-header"><div class="section-icon">📝</div><h2 class="section-title" data-pk="s9_title">Cambios a esta política</h2></div>
+        <p>Podemos actualizar esta política para reflejar cambios en nuestras prácticas. Cuando lo hagamos, actualizaremos la fecha al inicio de este documento.</p>
+      </section>
+      <div class="contact-card" id="contacto">
+        <h3 data-pk="contact_title">¿Tenés preguntas?</h3>
+        <p data-pk="contact_desc">Si tenés dudas sobre esta política o sobre cómo tratamos tu información, escribinos.</p>
+        <a href="mailto:privacy@lyfter.team" class="contact-email">privacy@lyfter.team</a>
+      </div>
+    </main>
+  </div>
+  <footer><p>© 2026 Lyfter Team · <a href="privacy.html">Política de Privacidad</a> · <a href="index.html">Volver a la app</a></p></footer>
+  <script>
+    var sections = document.querySelectorAll('.section[id], .contact-card[id]');
+    var links = document.querySelectorAll('.sidebar-link');
+    function onScroll() {
+      var scrollY = window.scrollY + 80; var current = '';
+      sections.forEach(function(s) { if (s.offsetTop <= scrollY) current = s.id; });
+      links.forEach(function(l) { l.classList.toggle('active', l.getAttribute('href') === '#' + current); });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  </script>
+  <script>
+    var langSel = document.getElementById('lang-selector');
+    try { langSel.value = localStorage.getItem('lyfter_lang') || 'es'; } catch(e) {}
+    langSel.addEventListener('change', function() {
+      window.LyfterUtils.setLang(langSel.value);
+      location.reload();
+    });
+
+    var _privacyStrings = {
+      es: {
+        title: 'Política de Privacidad',
+        subtitle: 'Cómo recopilamos, usamos y protegemos tu información cuando usás Lyfter Badge App.',
+        updated: 'Última actualización: junio 2026',
+        back: '← Volver',
+        s1_title: 'Qué información recopilamos',
+        s1_p1: 'Recopilamos únicamente la información necesaria para que la app funcione.',
+        s2_title: 'Cómo usamos tu información',
+        s2_p1: 'Usamos tu información exclusivamente para que la experiencia de la app funcione:',
+        s3_title: 'Con quién compartimos tu información',
+        s3_p1: 'Tu información puede ser procesada por estos proveedores de infraestructura:',
+        s4_title: 'Cuánto tiempo guardamos tu información',
+        s5_title: 'Cómo protegemos tu información',
+        s6_title: 'Tus derechos',
+        s7_title: 'Cookies y almacenamiento local',
+        s8_title: 'Menores de edad',
+        s9_title: 'Cambios a esta política',
+        contact_title: '¿Tenés preguntas?',
+        contact_desc: 'Si tenés dudas sobre esta política o sobre cómo tratamos tu información, escribinos.'
+      },
+      en: {
+        title: 'Privacy Policy',
+        subtitle: 'How we collect, use and protect your information when you use Lyfter Badge App.',
+        updated: 'Last updated: June 2026',
+        back: '← Back',
+        s1_title: 'What information we collect',
+        s1_p1: 'We only collect the information necessary for the app to work.',
+        s2_title: 'How we use your information',
+        s2_p1: 'We use your information exclusively to make the app experience work:',
+        s3_title: 'Who we share your information with',
+        s3_p1: 'Your information may be processed by these infrastructure providers:',
+        s4_title: 'How long we keep your information',
+        s5_title: 'How we protect your information',
+        s6_title: 'Your rights',
+        s7_title: 'Cookies and local storage',
+        s8_title: 'Minors',
+        s9_title: 'Changes to this policy',
+        contact_title: 'Have questions?',
+        contact_desc: 'If you have questions about this policy or how we handle your information, contact us.'
+      }
+    };
+
+    function applyPrivacyLang() {
+      var lang = 'es';
+      try { lang = localStorage.getItem('lyfter_lang') || 'es'; } catch(e) {}
+      var s = _privacyStrings[lang] || _privacyStrings['es'];
+      document.querySelectorAll('[data-pk]').forEach(function(el) {
+        var key = el.getAttribute('data-pk');
+        if (s[key]) el.textContent = s[key];
+      });
+    }
+
+    applyPrivacyLang();
+  </script>
+  <script src="js/stars.js"></script>
+</body>
+</html>

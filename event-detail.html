@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evento — Lyfter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#13151b;font-family:Manrope,system-ui,sans-serif;min-height:100vh;color:#f4f6f9;}
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <img src="assets/icons/ui/logo-lyfter.jpeg" alt="Lyfter" />
+    <div class="loader"></div>
+    <span>Cargando...</span>
+  <div id="server-wakeup-notice" style="display:none;margin-top:16px;font-family:Manrope,sans-serif;font-size:12px;color:#8b93a3;text-align:center;max-width:240px;">
+    <img src="assets/icons/ui/reloj-de-arena.png" style="width:32px;height:32px;object-fit:contain;display:block;margin:0 auto 6px;opacity:0.7;" />
+    El servidor está despertando...<br>Esto puede tardar hasta 1 minuto.
+  </div>
+  </div>
+  <div id="app" style="max-width:480px;margin:0 auto;padding:16px 16px 40px;min-height:100vh;"></div>
+  <div id="modal-root"></div>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/stars.js"></script>
+  <script>
+  (function() {
+    var API = window.LyfterAPI;
+    var U   = window.LyfterUtils;
+
+    var user = API.currentUser();
+    if (!user) { window.location.replace('login.html'); return; }
+
+    var params  = new URLSearchParams(window.location.search);
+    var eventId = params.get('id');
+    if (!eventId) { window.location.replace('profile.html'); return; }
+
+    var app = document.getElementById('app');
+
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      try { return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }); }
+      catch(e) { return iso; }
+    }
+
+    async function init() {
+      try {
+        // Detalle con badges + estado obtenido por usuario
+        var detail = await API.getEventDetail(eventId);
+
+        // Metadata completa (foto, status, location, tags, workspace_name)
+        var allEvents = await API.listEvents().catch(function() { return []; });
+        var meta = allEvents.find(function(e) { return e.id === eventId; }) || {};
+
+        U.hideLoading();
+        render(detail, meta);
+      } catch(e) {
+        U.hideLoading();
+        app.innerHTML = '<p style="color:#e68a8d;text-align:center;padding:40px;">No se pudo cargar el evento.</p>';
+      }
+    }
+
+    window.toggleSaveDetail = async function(evId) {
+      try {
+        var res = await fetch(API.base + '/events/' + evId + '/save', {
+          method: 'POST',
+          headers: API.authHeaders()
+        });
+        var data = await res.json();
+        var btn = document.getElementById('save-btn-' + evId);
+        if (btn) {
+          btn.textContent = data.saved ? 'Guardado' : 'Guardar evento';
+          btn.style.color = data.saved ? '#d897e7' : '#8b93a3';
+          btn.style.borderColor = data.saved ? 'rgba(216,151,231,0.4)' : '#2f343f';
+          btn.style.background = data.saved ? 'rgba(216,151,231,0.1)' : 'transparent';
+        }
+        if (data.saved) {
+          U.toast('Evento guardado en tu lista', 'success');
+          var notif = document.createElement('div');
+          notif.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1f27;border:1px solid rgba(216,151,231,0.4);border-radius:14px;padding:12px 20px;display:flex;align-items:center;gap:10px;z-index:9999;animation:slideUp .3s ease;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+          notif.innerHTML =
+            '<img src="assets/icons/ui/icono-reclamado.png" style="width:20px;height:20px;object-fit:contain;" />' +
+            '<div>' +
+              '<div style="font-family:Poppins,sans-serif;font-size:13px;font-weight:700;color:#d897e7;">¡Evento guardado!</div>' +
+              '<div style="font-family:Manrope,sans-serif;font-size:11px;color:#8b93a3;">Lo encontrarás en Mi actividad → Guardados</div>' +
+            '</div>';
+          document.body.appendChild(notif);
+          setTimeout(function() {
+            notif.style.opacity = '0';
+            notif.style.transition = 'opacity .3s';
+            setTimeout(function() { notif.remove(); }, 300);
+          }, 2500);
+        } else {
+          U.toast('Evento eliminado de guardados', 'info');
+        }
+      } catch(e) {
+        U.toast('Error al guardar', 'error');
+      }
+    };
+
+    function render(detail, meta) {
+      var statusColors = { upcoming:'#3b82f6', open:'#16a34a', ongoing:'#6C63FF', closed:'#d97706', postponed:'#9333ea', draft:'#8b93a3' };
+      var statusLabels = { upcoming:'Próximo', open:'Abierto', ongoing:'En curso', closed:'Cerrado', postponed:'Pospuesto', draft:'Borrador' };
+
+      var status     = meta.status || 'draft';
+      var statusCol  = statusColors[status] || '#8b93a3';
+      var statusLbl  = statusLabels[status]  || status;
+
+      var coverHtml = meta.photo
+        ? '<img src="' + U.esc(meta.photo) + '" style="width:100%;height:200px;object-fit:cover;border-radius:16px;margin-bottom:16px;" />'
+        : '<div style="width:100%;height:180px;border-radius:16px;background:linear-gradient(135deg,#d897e7,#e68a8d);margin-bottom:16px;display:flex;align-items:center;justify-content:center;"><img src="assets/icons/ui/icono-evento.png" style="width:52px;height:52px;object-fit:contain;opacity:0.85;"></div>';
+
+      var tagsHtml = (meta.tags || []).map(function(t) {
+        return '<span style="padding:3px 10px;border-radius:999px;font-size:11px;background:#2e323d;color:#8b93a3;">' + U.esc(t) + '</span>';
+      }).join('');
+
+
+      app.innerHTML =
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">' +
+          '<button onclick="history.back()" style="background:rgba(255,255,255,0.06);border:none;border-radius:10px;width:36px;height:36px;cursor:pointer;color:#f4f6f9;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">←</button>' +
+          '<h1 style="font-family:Poppins,sans-serif;font-size:18px;font-weight:700;color:#f4f6f9;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + U.esc(meta.name || detail.name || '') + '</h1>' +
+        '</div>' +
+
+        coverHtml +
+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">' +
+          '<span style="padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;background:' + statusCol + '22;color:' + statusCol + ';">' + statusLbl + '</span>' +
+          tagsHtml +
+        '</div>' +
+
+        '<div style="background:#1c1f27;border-radius:16px;padding:16px;margin-bottom:16px;display:flex;flex-direction:column;gap:8px;">' +
+          '<div style="font-size:13px;color:#8b93a3;display:flex;align-items:center;gap:4px;"><img src="assets/icons/ui/icono-calendario-blanco.png" style="width:14px;height:14px;object-fit:contain;opacity:0.7;"> ' + fmtDate(meta.start) + (meta.end ? ' — ' + fmtDate(meta.end) : '') + '</div>' +
+          (meta.location ? '<div style="font-size:13px;color:#8b93a3;display:flex;align-items:center;gap:4px;"><img src="assets/icons/ui/icono-ubicacion.png" style="width:14px;height:14px;object-fit:contain;opacity:0.7;"> ' + U.esc(meta.location) + '</div>' : '') +
+          (meta.workspace_name ? '<div style="font-size:13px;color:#d897e7;font-weight:600;display:flex;align-items:center;gap:4px;"><img src="assets/icons/ui/icono-evento.png" style="width:18px;height:18px;object-fit:contain;"> ' + U.esc(meta.workspace_name) + '</div>' : '') +
+          (meta.description ? '<div style="font-size:13px;color:#8b93a3;line-height:1.5;margin-top:4px;">' + U.esc(meta.description) + '</div>' : '') +
+        '</div>' +
+
+        '<div style="display:flex;align-items:flex-start;gap:12px;background:rgba(216,151,231,0.08);border:1px solid rgba(216,151,231,0.25);border-radius:14px;padding:14px 16px;margin-bottom:8px;">' +
+          '<img src="assets/icons/ui/icono-qr.png" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;margin-top:2px;" onerror="this.style.display=\'none\'" />' +
+          '<p style="font-family:Manrope,sans-serif;font-size:13px;color:#d897e7;line-height:1.5;margin:0;">Para acceder a este evento tenés que escanear su respectivo QR.</p>' +
+        '</div>' +
+
+        '<button id="save-btn-' + (meta.id || eventId) + '" onclick="toggleSaveDetail(\'' + (meta.id || eventId) + '\')" ' +
+          'style="width:100%;margin-top:10px;padding:12px;border-radius:12px;' +
+          'border:1px solid #2f343f;background:transparent;color:#8b93a3;' +
+          'font-family:Poppins,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Guardar evento</button>';
+
+      // Verificar si está guardado en el backend
+      var eid = meta.id || eventId;
+      fetch(API.base + '/events/' + eid + '/save/status', { headers: API.authHeaders() })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var btn = document.getElementById('save-btn-' + eid);
+          if (btn && d.saved) {
+            btn.textContent = 'Guardado';
+            btn.style.color = '#d897e7';
+            btn.style.borderColor = 'rgba(216,151,231,0.4)';
+            btn.style.background = 'rgba(216,151,231,0.1)';
+          }
+        }).catch(function(){});
+    }
+
+    setTimeout(function() { U.hideLoading(); }, 6000);
+    init();
+  })();
+  </script>
+  <nav class="lyfter-bottom-nav">
+    <a href="inicio.html" class="lyfter-nav-item"><i class="bi bi-house-fill"></i><span>Inicio</span></a>
+    <a href="profile.html" class="lyfter-nav-item active"><i class="bi bi-compass"></i><div class="lyfter-nav-dot"></div></a>
+    <a href="scan.html" class="lyfter-nav-item"><i class="bi bi-qr-code-scan"></i><span>Escanear</span></a>
+    <a href="user-events.html" class="lyfter-nav-item"><img src="assets/icons/ui/icono-evento.png" style="width:22px;height:22px;object-fit:contain;opacity:0.5;" class="nav-evento-icon" /><span>Eventos</span></a>
+    <a href="profile-new.html" class="lyfter-nav-item" id="nav-perfil-btn"><span>Perfil</span></a>
+  </nav>
+  <script>
+  (function() {
+    var API = window.LyfterAPI;
+    var U = window.LyfterUtils;
+    var user = API && API.currentUser();
+    if (!API || !user) return;
+    API.getProfile().then(function(profile) {
+      var profileAvatar = profile.avatar || (user && user.avatar) || null;
+      var initials = (user && user.name ? user.name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase() : '?');
+      var navAvatar = profileAvatar
+        ? '<img src="' + U.esc(profileAvatar) + '" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(216,151,231,0.5);" />'
+        : '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#d897e7,#e68a8d);display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:9px;font-weight:800;color:#1c1f27;">' + initials + '</div>';
+      var navPerfilBtn = document.getElementById('nav-perfil-btn');
+      if (navPerfilBtn) navPerfilBtn.insertAdjacentHTML('afterbegin', navAvatar);
+    }).catch(function() {});
+  })();
+  </script>
+</body>
+</html>
